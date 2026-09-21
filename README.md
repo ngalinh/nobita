@@ -26,6 +26,7 @@ Chỉ các key trong `server/.env.example` là bắt buộc:
 | `BASSO_API_KEY` | Partner app key (giống Doraemon) |
 | `BASSO_AUTH_URL` | SSO session (đã có mặc định) |
 | `NOBITA_DEV_MODE` | `0` trên production |
+| `BASSO_ADMIN_BASE_URL` | Tuỳ chọn — URL Basso có API gợi ý PTTT; `-` = tắt |
 
 **Không cần** `BASSO_EMAIL` / `BASSO_PASS` trên wizard.
 
