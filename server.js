@@ -36,7 +36,7 @@ const fs = require("fs");
 const { chromium } = require("playwright");
 const { scrapeWithBrightData, resolveDataset } = require("./lib/brightdata");
 const { listDatasets } = require("./lib/brightdata-datasets");
-const { sendOrderToSheets, sendBuyListToSheets, pullReverseFromSheet, SPREADSHEET_ID, defaultSheetUrl, explainGoogleError, loadCredentials, CREDENTIALS_FILE, defaultColumnMap, normalizeColumnMap, COLUMN_FIELDS, ALL_COLUMN_FIELDS } = require("./lib/sheets");
+const { sendOrderToSheets, sendBuyListToSheets, pullReverseFromSheet, SPREADSHEET_ID, defaultSheetUrl, explainGoogleError, loadCredentials, CREDENTIALS_FILE, defaultColumnMap, normalizeColumnMap, COLUMN_FIELDS, ALL_COLUMN_FIELDS, parseSheetUrl } = require("./lib/sheets");
 const {
   readPartnerConfig,
   partnerConfigured,
@@ -473,12 +473,15 @@ async function sendItemsToPtttSheet(buyList, body = {}) {
     } catch {
       /* ignore */
     }
+    const parsed = parseSheetUrl(pttt.sheetUrl);
     return {
       ok: false,
       error: explainGoogleError(sheet.googleError),
       googleError: sheet.googleError,
       serviceAccount: serviceEmail,
       sheetUrl: pttt.sheetUrl,
+      spreadsheetId: parsed.spreadsheetId || "",
+      ptttName: pttt.name,
       cleared: 0,
     };
   }

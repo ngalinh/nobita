@@ -1370,6 +1370,8 @@ $(function () {
       const data = await res.json();
       if (!data.ok) {
         let msg = data.error || "Gửi đơn thất bại";
+        if (data.ptttName) msg += `\nPTTT: ${data.ptttName}`;
+        if (data.sheetUrl) msg += `\nSheet: ${data.sheetUrl}`;
         if (data.serviceAccount) msg += `\nShare sheet với: ${data.serviceAccount}`;
         return toast(msg, { error: true });
       }
