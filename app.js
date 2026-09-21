@@ -80,6 +80,16 @@ function money(n) {
   });
 }
 
+function formatRate(rate) {
+  const s = String(rate || "").trim();
+  if (!s) return "";
+  const m = s.match(/^([\d.,]+)\s*(đ|d)?$/i);
+  if (!m) return s;
+  const n = Number(String(m[1]).replace(/,/g, ""));
+  if (!Number.isFinite(n)) return s;
+  return `${n.toLocaleString("en-US")}đ`;
+}
+
 function escapeHtml(s) {
   return String(s ?? "")
     .replace(/&/g, "&amp;")
@@ -479,7 +489,7 @@ function renderOrders() {
         <td><a href="javascript:" class="toggle-hit" onclick="toggle_row(this)">$ ${money(order.total)}</a></td>
         <td>
           <a href="javascript:" class="toggle-hit" onclick="toggle_row(this)">${escapeHtml(order.website)}</a>
-          <p class="mb-0">${escapeHtml(order.rate || "")}</p>
+          <p class="mb-0">${escapeHtml(formatRate(order.rate) || "")}</p>
         </td>
         <td class="sheet-status-cell">${orderSheetStatusHtml(order)}</td>
         <td>
