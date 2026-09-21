@@ -8,6 +8,7 @@
     "email": "",
     "password": ""
   },
+  "_comment_partner": "apiKey có thể để trống nếu đã set BASSO_API_KEY env. email/password chỉ cho local fallback — trên ai.basso.vn dùng token phiên đăng nhập.",
   "settings": {
     "pttt": [
       {

@@ -40,6 +40,9 @@ const { sendOrderToSheets, sendBuyListToSheets, pullReverseFromSheet, SPREADSHEE
 const {
   readPartnerConfig,
   partnerConfigured,
+  hasServiceCredentials,
+  extractBearerToken,
+  cacheKeyForToken,
   getWebOrderCreateMeta,
   fetchAllWebOrders,
   getLastWebPaymentByWebsite,
@@ -47,6 +50,7 @@ const {
   matchLocalPtttId,
   normalizeWebsiteKey,
   createWebOrder,
+  loginWithCredentials,
 } = require("./lib/basso-partner");
 const {
   readTelegramConfig,
@@ -185,7 +189,7 @@ function resolveWebsitePtttMap(adminMap, settingsPttt) {
   return merged;
 }
 
-async function loadWebsitePtttSuggestions(partner, { force = false } = {}) {
+async function loadWebsitePtttSuggestions(partner, { force = false, userToken = "" } = {}) {
   if (!force && websitePtttCache.at && Date.now() - websitePtttCache.at < WEBSITE_PTTT_CACHE_MS) {
     return websitePtttCache;
   }
@@ -193,7 +197,7 @@ async function loadWebsitePtttSuggestions(partner, { force = false } = {}) {
   let adminMap = {};
   let source = "local";
   try {
-    const data = await getLastWebPaymentByWebsite(partner, { days: 180 });
+    const data = await getLastWebPaymentByWebsite(partner, { days: 180, userToken });
     adminMap = buildWebsitePtttFromAdmin(data.by_website || {});
     source = data._sourceBase || partner.adminBaseUrl || partner.baseUrl || "admin";
   } catch (err) {
@@ -258,13 +262,14 @@ function findOrderInList(orders, id) {
   return (orders || []).find((o) => String(o.id) === key || String(o.bassoId) === key);
 }
 
-async function loadLiveOrders({ force = false } = {}) {
+async function loadLiveOrders({ force = false, userToken = "" } = {}) {
   const partner = readPartnerConfig(CONFIG_FILE);
   if (!partnerConfigured(partner)) {
     const localMap = resolveWebsitePtttMap({}, getSettings().pttt || []);
     const orders = applyOrderOverlays(applyItemOverlays(readMockOrders()), localMap);
     liveOrdersCache = {
       at: Date.now(),
+      key: "mock",
       orders,
       meta: null,
       pendingByTab: {},
@@ -275,23 +280,50 @@ async function loadLiveOrders({ force = false } = {}) {
     return liveOrdersCache;
   }
 
-  if (!force && liveOrdersCache.source === "partner" && Date.now() - liveOrdersCache.at < LIVE_CACHE_MS) {
+  const cacheKey = cacheKeyForToken(userToken);
+  if (
+    !force &&
+    liveOrdersCache.source === "partner" &&
+    liveOrdersCache.key === cacheKey &&
+    Date.now() - liveOrdersCache.at < LIVE_CACHE_MS
+  ) {
+    return liveOrdersCache;
+  }
+
+  // Không có Bearer từ browser và cũng không có email/pass local → mock + hướng dẫn
+  if (!userToken && !hasServiceCredentials(partner)) {
+    const localMap = resolveWebsitePtttMap({}, getSettings().pttt || []);
+    const orders = applyOrderOverlays(applyItemOverlays(readMockOrders()), localMap);
+    liveOrdersCache = {
+      at: Date.now(),
+      key: cacheKey,
+      orders,
+      meta: null,
+      pendingByTab: {},
+      source: "mock",
+      websitePttt: localMap,
+      websitePtttSource: "local",
+      error:
+        "Chưa có token Partner. Đăng nhập ai.basso.vn rồi mở lại Nobita (token lưu trong phiên đăng nhập).",
+    };
     return liveOrdersCache;
   }
 
   const [meta, ptttSug] = await Promise.all([
-    getWebOrderCreateMeta(partner),
-    loadWebsitePtttSuggestions(partner, { force }),
+    getWebOrderCreateMeta(partner, { userToken }),
+    loadWebsitePtttSuggestions(partner, { force, userToken }),
   ]);
   const overlay = readOrderOverlays();
   const { orders, pendingByTab, websites } = await fetchAllWebOrders(partner, {
     picList: meta.pic || [],
     overlay,
+    userToken,
   });
   applyItemOverlays(orders);
   applyOrderOverlays(orders, ptttSug.map);
   liveOrdersCache = {
     at: Date.now(),
+    key: cacheKey,
     orders,
     meta,
     pendingByTab,
@@ -305,14 +337,15 @@ async function loadLiveOrders({ force = false } = {}) {
   return liveOrdersCache;
 }
 
-async function getOrdersForApi({ force = false } = {}) {
+async function getOrdersForApi({ force = false, userToken = "" } = {}) {
   try {
-    return await loadLiveOrders({ force });
+    return await loadLiveOrders({ force, userToken });
   } catch (err) {
     console.error("[partner] fallback mock:", err.message || err);
     const orders = applyOrderOverlays(applyItemOverlays(readMockOrders()));
     return {
       at: Date.now(),
+      key: cacheKeyForToken(userToken),
       orders,
       meta: null,
       pendingByTab: {},
@@ -1357,7 +1390,8 @@ app.post("/api/basso/credentials", (req, res) => {
 
 app.get("/api/basso/orders", async (req, res) => {
   const force = String(req.query.refresh || "") === "1";
-  const live = await getOrdersForApi({ force });
+  const userToken = extractBearerToken(req);
+  const live = await getOrdersForApi({ force, userToken });
   const buyList = readBuyList();
   const orders = live.orders || [];
   const pic = ((live.meta && live.meta.pic) || [])
@@ -1646,7 +1680,15 @@ app.post("/api/basso/buy-list/create-admin-order", async (req, res) => {
   if (!partnerConfigured(partner)) {
     return res.status(400).json({
       ok: false,
-      error: "Chưa cấu hình Partner API — không tạo được đơn Admin",
+      error: "Chưa cấu hình BASSO_API_KEY — không tạo được đơn Admin",
+    });
+  }
+  const userToken = extractBearerToken(req);
+  if (!userToken && !hasServiceCredentials(partner)) {
+    return res.status(401).json({
+      ok: false,
+      error:
+        "Thiếu token Partner — đăng nhập ai.basso.vn rồi mở lại Nobita",
     });
   }
 
@@ -1705,7 +1747,9 @@ app.post("/api/basso/buy-list/create-admin-order", async (req, res) => {
   }
 
   try {
-    const result = await createWebOrder(partner, {
+    const result = await createWebOrder(
+      partner,
+      {
       items,
       created_time: body.created_time,
       create_billing:
@@ -1723,7 +1767,9 @@ app.post("/api/basso/buy-list/create-admin-order", async (req, res) => {
       brand,
       cashback_rate: Number(body.cashback_rate || 0),
       web_cashback_id: body.web_cashback_id || "",
-    });
+    },
+      { userToken }
+    );
     writeBuyList([]);
     res.json({
       ok: true,
@@ -1803,6 +1849,28 @@ app.post("/api/basso/orders/:id/send-to-sheet", async (req, res) => {
       ok: false,
       error: "Gửi đơn thất bại: " + (err.message || String(err)),
     });
+  }
+});
+
+/** Proxy Partner login — platform chat-login / Doraemon gọi endpoint này. */
+app.post("/api/basso-login", async (req, res) => {
+  const email = String((req.body && req.body.email) || "").trim();
+  const pass = String((req.body && (req.body.pass || req.body.password)) || "");
+  if (!email || !pass) {
+    return res.status(400).json({ success: false, message: "Thiếu email hoặc mật khẩu" });
+  }
+  const partner = readPartnerConfig(CONFIG_FILE);
+  if (!partnerConfigured(partner)) {
+    return res.status(503).json({
+      success: false,
+      message: "Chưa cấu hình BASSO_API_KEY",
+    });
+  }
+  try {
+    const auth = await loginWithCredentials(partner, { email, pass });
+    res.json(auth.raw);
+  } catch (err) {
+    res.status(502).json({ success: false, message: err.message || String(err) });
   }
 });
 
@@ -1905,8 +1973,10 @@ app.listen(PORT, () => {
   const partner = readPartnerConfig(CONFIG_FILE);
   console.log(
     partnerConfigured(partner)
-      ? `Partner API: ${partner.baseUrl} (${partner.email})`
-      : "Partner API: OFF (dùng mock-orders.json)"
+      ? `Partner API: ${partner.baseUrl} (key OK${
+          hasServiceCredentials(partner) ? ", service login local" : ", token từ phiên ai.basso.vn"
+        })`
+      : "Partner API: OFF (thiếu BASSO_API_KEY — dùng mock)"
   );
   console.log(`Mock orders: ${readMockOrders().length}`);
   console.log(`Buy list: ${readBuyList().length}`);

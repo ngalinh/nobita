@@ -85,6 +85,31 @@ function escapeHtml(s) {
     .replace(/"/g, "&quot;");
 }
 
+/** Token Partner từ phiên đăng nhập ai.basso.vn (giống Doraemon). */
+function getChatUser() {
+  try {
+    return JSON.parse(
+      localStorage.getItem("ai_chat_user") || sessionStorage.getItem("ai_chat_user") || "null"
+    );
+  } catch {
+    return null;
+  }
+}
+
+function getPartnerAuthHeaders() {
+  const user = getChatUser();
+  if (user && user.token) return { Authorization: `Bearer ${user.token}` };
+  return {};
+}
+
+function apiFetch(url, opts = {}) {
+  const headers = {
+    ...(opts.headers || {}),
+    ...getPartnerAuthHeaders(),
+  };
+  return fetch(url, { ...opts, credentials: "include", headers });
+}
+
 function toggle_row(ele) {
   const tbody = $(ele).parent().parent().parent();
   const nextItems = $(ele).parent().parent().next().find(".item-detail");
@@ -933,12 +958,21 @@ function switchTab(status) {
 
 async function loadSessionUser() {
   try {
-    const res = await fetch("/api/me", { credentials: "include" }).then((r) => r.json());
+    const res = await apiFetch("/api/me").then((r) => r.json());
     if (res && res.ok && res.user) {
       state.sessionUser = res.user;
       state.authSource = res.user.source || "session";
       if (res.user.name) state.currentUser = res.user.name;
       return res.user;
+    }
+    // Fallback: tên từ ai_chat_user (platform login)
+    const chat = getChatUser();
+    if (chat && (chat.name || chat.email)) {
+      const name = chat.name || String(chat.email || "").split("@")[0];
+      state.sessionUser = { email: chat.email || "", name, source: "ai_chat_user" };
+      state.authSource = "ai_chat_user";
+      state.currentUser = name;
+      return state.sessionUser;
     }
     state.sessionUser = null;
     state.authSource = "";
@@ -951,7 +985,7 @@ async function loadSessionUser() {
 
 async function loadCredentialsInfo() {
   try {
-    const res = await fetch("/api/basso/credentials").then((r) => r.json());
+    const res = await apiFetch("/api/basso/credentials").then((r) => r.json());
     $("#credEmail").text(res.configured ? res.client_email || "—" : "Chưa cấu hình");
     $("#credHint").text(res.configured ? "" : res.error || "");
   } catch (err) {
@@ -963,10 +997,10 @@ async function loadAll(opts = {}) {
   const refresh = opts.refresh ? "?refresh=1" : "";
   const [meUser, ordersRes, buyRes, settingsRes, reasonsRes] = await Promise.all([
     loadSessionUser(),
-    fetch(`/api/basso/orders${refresh}`, { credentials: "include" }).then((r) => r.json()),
-    fetch("/api/basso/buy-list").then((r) => r.json()),
-    fetch("/api/basso/settings").then((r) => r.json()),
-    fetch("/api/basso/report-reasons").then((r) => r.json()).catch(() => ({ reasons: {} })),
+    apiFetch(`/api/basso/orders${refresh}`).then((r) => r.json()),
+    apiFetch("/api/basso/buy-list").then((r) => r.json()),
+    apiFetch("/api/basso/settings").then((r) => r.json()),
+    apiFetch("/api/basso/report-reasons").then((r) => r.json()).catch(() => ({ reasons: {} })),
   ]);
   state.orders = ordersRes.orders || [];
   state.buyList = buyRes.items || [];
@@ -1117,7 +1151,7 @@ $(function () {
     const website = $tr.data("website");
     const reason = $tr.find(".js-report-reason").val() || "";
     try {
-      const res = await fetch("/api/basso/report-reasons", {
+      const res = await apiFetch("/api/basso/report-reasons", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ website, reason }),
@@ -1135,7 +1169,7 @@ $(function () {
   $("#btnSyncSheet").on("click", async function () {
     const $btn = $(this).prop("disabled", true);
     try {
-      const res = await fetch("/api/basso/sync-from-sheet", {
+      const res = await apiFetch("/api/basso/sync-from-sheet", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1174,7 +1208,7 @@ $(function () {
     const $tr = $(this).closest("tr");
     const id = $tr.data("id");
     const note = $tr.find("[data-note]").val();
-    await fetch(`/api/basso/orders/${encodeURIComponent(id)}/note`, {
+    await apiFetch(`/api/basso/orders/${encodeURIComponent(id)}/note`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ note }),
@@ -1191,7 +1225,7 @@ $(function () {
     let handler = String($(this).val() || "").trim();
     if (handler === "Lựa chọn") handler = "";
     try {
-      const res = await fetch(`/api/basso/orders/${encodeURIComponent(id)}/handler`, {
+      const res = await apiFetch(`/api/basso/orders/${encodeURIComponent(id)}/handler`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ handler }),
@@ -1215,7 +1249,7 @@ $(function () {
   $("#ordersBody").on("click", ".js-add-all", async function (e) {
     e.preventDefault();
     const id = $(this).closest("tr").data("id");
-    const res = await fetch(`/api/basso/buy-list/add-all`, {
+    const res = await apiFetch(`/api/basso/buy-list/add-all`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ orderId: id }),
@@ -1231,7 +1265,7 @@ $(function () {
     e.preventDefault();
     const orderId = $(this).closest("tr.tr-collapse").prev("tr").data("id");
     const itemId = $(this).data("item-id");
-    const res = await fetch(`/api/basso/buy-list/add-item`, {
+    const res = await apiFetch(`/api/basso/buy-list/add-item`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ orderId, itemId }),
@@ -1256,7 +1290,7 @@ $(function () {
   $("#buyBody, #buyBodyAdmin").on("click", ".js-buy-delete", async function (e) {
     e.preventDefault();
     const buyId = $(this).closest("tr").data("buy-id");
-    const res = await fetch(`/api/basso/buy-list/${encodeURIComponent(buyId)}`, { method: "DELETE" });
+    const res = await apiFetch(`/api/basso/buy-list/${encodeURIComponent(buyId)}`, { method: "DELETE" });
     const data = await res.json();
     if (!data.ok) return toast(data.error || "Xóa thất bại");
     state.buyList = data.items || [];
@@ -1266,7 +1300,7 @@ $(function () {
   $("#buyBody, #buyBodyAdmin").on("change", ".js-buy-price", async function () {
     const buyId = $(this).closest("tr").data("buy-id");
     const price = Number(String($(this).val()).replace(/,/g, "")) || 0;
-    const res = await fetch(`/api/basso/buy-list/${encodeURIComponent(buyId)}`, {
+    const res = await apiFetch(`/api/basso/buy-list/${encodeURIComponent(buyId)}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ price }),
@@ -1297,7 +1331,7 @@ $(function () {
     const ac = typeof AbortController !== "undefined" ? new AbortController() : null;
     const timer = ac ? setTimeout(() => ac.abort(), 60000) : null;
     try {
-      const res = await fetch("/api/basso/buy-list/create-order", {
+      const res = await apiFetch("/api/basso/buy-list/create-order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         signal: ac ? ac.signal : undefined,
@@ -1358,7 +1392,7 @@ $(function () {
     toast("Đang tạo đơn Admin trên Basso…");
     try {
       const buyRate = Number($("#dm_payment option:selected").data("rate") || 0);
-      const res = await fetch("/api/basso/buy-list/create-admin-order", {
+      const res = await apiFetch("/api/basso/buy-list/create-admin-order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1451,7 +1485,7 @@ $(function () {
     const settings = collectSettingsFromForm();
     if (!settings.pttt.length) return toast("Cần ít nhất 1 PTTT");
     if (!settings.warehouses.length) return toast("Cần ít nhất 1 warehouse");
-    const res = await fetch("/api/basso/settings", {
+    const res = await apiFetch("/api/basso/settings", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ settings }),
@@ -1471,7 +1505,7 @@ $(function () {
     try {
       const text = await file.text();
       const json = JSON.parse(text);
-      const res = await fetch("/api/basso/credentials", {
+      const res = await apiFetch("/api/basso/credentials", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ json }),
