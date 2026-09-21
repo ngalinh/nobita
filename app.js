@@ -175,7 +175,12 @@ function ptttSuggestHtml(order) {
     ${meta.boughtDate ? `<div class="text-muted" style="font-size:10px;line-height:1.2">${escapeHtml(meta.boughtDate)}</div>` : ""}`;
 }
 
+function hasSelect2() {
+  return typeof $.fn.select2 === "function";
+}
+
 function initUserPicSelect2() {
+  if (!hasSelect2()) return;
   $("select.user-pic").each(function () {
     const $select = $(this);
     if ($select.data("select2")) $select.select2("destroy");
@@ -268,7 +273,7 @@ function fillSites() {
   }
   const $sel = $("#siteFilter");
   const cur = $sel.val() || state.site || "";
-  if ($sel.data("select2")) $sel.select2("destroy");
+  if (hasSelect2() && $sel.data("select2")) $sel.select2("destroy");
   $sel.html('<option value="">Tất cả site</option>');
   sites.forEach((s) => $sel.append(`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`));
   if (cur && sites.includes(cur)) $sel.val(cur);
@@ -291,7 +296,7 @@ function websiteMatchesFilter(orderWebsite, filterSite) {
 
 function initSiteFilterSelect2() {
   const $sel = $("#siteFilter");
-  if (!$sel.length) return;
+  if (!$sel.length || !hasSelect2()) return;
   if ($sel.data("select2")) $sel.select2("destroy");
   $sel.select2({
     theme: "bootstrap4",

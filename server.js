@@ -713,6 +713,8 @@ app.get(["/", "/index.html"], (_req, res) => {
 app.get(["/app.js", "/styles.css"], (req, res) => {
   res.sendFile(path.join(__dirname, path.basename(req.path)));
 });
+app.use("/assets", express.static(path.join(__dirname, "assets")));
+app.use("/theme", express.static(path.join(__dirname, "theme")));
 app.use(express.static(path.join(__dirname, "public")));
 
 /**
