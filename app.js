@@ -56,6 +56,9 @@ const state = {
   source: "mock",
   pendingByTab: {},
   websitePttt: {},
+  websitePtttSource: "",
+  websitePtttError: "",
+  websitePtttAdminCount: 0,
   reportReasons: {},
   query: "",
   site: "",
@@ -163,13 +166,21 @@ function picOptionsHtml(selected) {
 function ptttSuggestHtml(order) {
   const name = String(order.ptttSuggestName || "").trim();
   if (!name) {
-    return `<span class="text-muted small">—</span>`;
+    const err = state.websitePtttError || "";
+    const tip = err
+      ? `Chưa có gợi ý Admin (${err.slice(0, 120)})`
+      : state.websitePtttAdminCount
+        ? "Chưa có đơn Admin gần đây cho website này"
+        : "Chưa lấy được PTTT từ API Đơn Admin";
+    return `<span class="text-muted small" title="${escapeHtml(tip)}">—</span>`;
   }
   const meta = order.ptttSuggestMeta || {};
   const tipParts = [];
   if (meta.boughtDate) tipParts.push(`Ngày mua: ${meta.boughtDate}`);
   if (meta.orderNumber) tipParts.push(`Order#: ${meta.orderNumber}`);
-  tipParts.push("PTTT đơn Admin gần nhất cùng website");
+  tipParts.push(
+    meta.source === "admin" ? "PTTT đơn Admin gần nhất cùng website" : "Gợi ý từ lần gửi Nobita"
+  );
   return `
     <span class="text-info" style="font-size:12px" title="${escapeHtml(tipParts.join(" · "))}">${escapeHtml(name)}</span>
     ${meta.boughtDate ? `<div class="text-muted" style="font-size:10px;line-height:1.2">${escapeHtml(meta.boughtDate)}</div>` : ""}`;
@@ -786,6 +797,30 @@ function renderReport() {
   });
 }
 
+function websiteKeyClient(raw) {
+  return String(raw || "")
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, "")
+    .replace(/^www\./, "")
+    .split("/")[0]
+    .replace(/\s+/g, "")
+    .replace(/\.(com|net|org|co|us|uk|vn)$/i, "");
+}
+
+function lookupWebsitePtttClient(website) {
+  const map = state.websitePttt || {};
+  const key = websiteKeyClient(website);
+  if (key && map[key]) return map[key];
+  if (!key) return null;
+  for (const [k, row] of Object.entries(map)) {
+    if (!k || !row) continue;
+    if (key.startsWith(k + ".") || k.startsWith(key + ".")) return row;
+    if (key.includes(k) || k.includes(key)) return row;
+  }
+  return null;
+}
+
 function fillOrderFormSelects() {
   const payCur = $("#oi_payment").val();
   const whCur = $("#oi_warehouse").val();
@@ -800,8 +835,7 @@ function fillOrderFormSelects() {
   const fromSite = (() => {
     const site = (state.buyList || []).map((b) => b.website).find(Boolean);
     if (!site) return "";
-    const key = String(site).trim().toLowerCase().replace(/\s+/g, "");
-    const sug = state.websitePttt && state.websitePttt[key];
+    const sug = lookupWebsitePtttClient(site);
     return sug ? sug.ptttId : "";
   })();
   const prefer = payCur || fromCart || fromSite || "";
@@ -842,14 +876,7 @@ function fillAdminFormSelects() {
   const fromSitePayment = (() => {
     const site = (state.buyList || []).map((b) => b.website).find(Boolean);
     if (!site) return "";
-    const key = String(site)
-      .trim()
-      .toLowerCase()
-      .replace(/^https?:\/\//, "")
-      .replace(/^www\./, "")
-      .replace(/\.(com|net|org|co|us|uk|vn)$/i, "")
-      .replace(/\s+/g, "");
-    const sug = state.websitePttt && state.websitePttt[key];
+    const sug = lookupWebsitePtttClient(site);
     return sug && sug.paymentId ? String(sug.paymentId) : "";
   })();
   if (payCur) $pay.val(payCur);
@@ -1030,6 +1057,9 @@ async function loadAll(opts = {}) {
   state.source = ordersRes.source || "mock";
   state.pendingByTab = ordersRes.pendingByTab || {};
   state.websitePttt = ordersRes.websitePttt || {};
+  state.websitePtttSource = ordersRes.websitePtttSource || "";
+  state.websitePtttError = ordersRes.websitePtttError || "";
+  state.websitePtttAdminCount = Number(ordersRes.websitePtttAdminCount || 0);
   state.createMeta = ordersRes.createMeta || state.createMeta || {};
   state.websites = Array.isArray(ordersRes.websites) ? ordersRes.websites : [];
   // Ưu tiên SSO session (Deki-style) → rồi buyer từ orders API

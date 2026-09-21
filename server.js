@@ -98,8 +98,22 @@ let liveOrdersCache = {
   websitePtttSource: "",
 };
 const LIVE_CACHE_MS = 30_000;
-let websitePtttCache = { at: 0, map: {}, source: "" };
+let websitePtttCache = { at: 0, key: "", map: {}, source: "", error: "", adminCount: 0 };
 const WEBSITE_PTTT_CACHE_MS = 5 * 60_000;
+const WEBSITE_PTTT_FAIL_CACHE_MS = 30_000;
+
+function lookupWebsitePttt(suggestions, website) {
+  const map = suggestions && typeof suggestions === "object" ? suggestions : {};
+  const key = normalizeWebsiteKeyLocal(website);
+  if (key && map[key]) return map[key];
+  if (!key) return null;
+  for (const [k, row] of Object.entries(map)) {
+    if (!k || !row) continue;
+    if (key.startsWith(k + ".") || k.startsWith(key + ".")) return row;
+    if (key.includes(k) || k.includes(key)) return row;
+  }
+  return null;
+}
 
 function readOrderOverlays() {
   try {
@@ -190,21 +204,42 @@ function resolveWebsitePtttMap(adminMap, settingsPttt) {
 }
 
 async function loadWebsitePtttSuggestions(partner, { force = false, userToken = "" } = {}) {
-  if (!force && websitePtttCache.at && Date.now() - websitePtttCache.at < WEBSITE_PTTT_CACHE_MS) {
+  const cacheKey =
+    cacheKeyForToken(userToken) + "|" + (partner.adminBaseUrl || "") + "|" + (partner.baseUrl || "");
+  const ttl =
+    websitePtttCache.error && !websitePtttCache.adminCount
+      ? WEBSITE_PTTT_FAIL_CACHE_MS
+      : WEBSITE_PTTT_CACHE_MS;
+  if (
+    !force &&
+    websitePtttCache.at &&
+    websitePtttCache.key === cacheKey &&
+    Date.now() - websitePtttCache.at < ttl
+  ) {
     return websitePtttCache;
   }
   const settings = getSettings();
   let adminMap = {};
   let source = "local";
+  let error = "";
   try {
     const data = await getLastWebPaymentByWebsite(partner, { days: 180, userToken });
     adminMap = buildWebsitePtttFromAdmin(data.by_website || {});
     source = data._sourceBase || partner.adminBaseUrl || partner.baseUrl || "admin";
   } catch (err) {
-    console.warn("[partner] getLastWebPaymentByWebsite:", err.message || err);
+    error = String(err.message || err);
+    console.warn("[partner] getLastWebPaymentByWebsite:", error);
   }
   const map = resolveWebsitePtttMap(adminMap, settings.pttt || []);
-  websitePtttCache = { at: Date.now(), map, source };
+  const adminCount = Object.keys(adminMap).length;
+  websitePtttCache = {
+    at: Date.now(),
+    key: cacheKey,
+    map,
+    source: adminCount ? source : error ? "local+error" : "local",
+    error,
+    adminCount,
+  };
   return websitePtttCache;
 }
 
@@ -215,7 +250,7 @@ function applyOrderOverlays(orders, websitePtttMap) {
     const ov = overlays[order.id] || overlays[order.bassoId] || {};
     if (ov.note != null) order.note = ov.note;
     if (ov.handler != null) order.handler = ov.handler;
-    const sug = suggestions[normalizeWebsiteKeyLocal(order.website)];
+    const sug = lookupWebsitePttt(suggestions, order.website);
     order.ptttSuggestId = sug ? sug.ptttId || "" : "";
     order.ptttSuggestName = sug ? sug.ptttName || "" : "";
     order.ptttSuggestMeta = sug
@@ -333,6 +368,8 @@ async function loadLiveOrders({ force = false, userToken = "" } = {}) {
     buyerUserId: meta.buyer_user_id || null,
     websitePttt: ptttSug.map,
     websitePtttSource: ptttSug.source,
+    websitePtttError: ptttSug.error || "",
+    websitePtttAdminCount: ptttSug.adminCount || 0,
   };
   return liveOrdersCache;
 }
@@ -1440,6 +1477,11 @@ app.get("/api/basso/orders", async (req, res) => {
     pendingByTab: live.pendingByTab || {},
     websitePttt: live.websitePttt || websitePtttCache.map || readWebsitePttt(),
     websitePtttSource: live.websitePtttSource || websitePtttCache.source || "",
+    websitePtttError: live.websitePtttError || websitePtttCache.error || "",
+    websitePtttAdminCount:
+      live.websitePtttAdminCount != null
+        ? live.websitePtttAdminCount
+        : websitePtttCache.adminCount || 0,
     websites: live.websites || [],
     createMeta: (() => {
       const meta = live.meta || loadFallbackCreateMeta() || {};
