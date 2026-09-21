@@ -1,0 +1,33 @@
+node_modules/
+playwright-report/
+test-results/
+
+# Secrets & local env
+.env
+.env.local
+.env.*.local
+credentials.json
+*.pem
+*.p12
+service-account*.json
+
+# Runtime / local data (may contain keys, PII, tokens)
+data/config.json
+data/orders.json
+data/buy-list.json
+data/order-overlays.json
+data/item-overlays.json
+data/website-pttt.json
+data/telegram-notify-state.json
+data/report-reasons.json
+data/don-mua.xlsx
+data/stock.json
+data/partner-create-list-*.json
+data/partner-create-meta.json
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.log
+.vscode/
+.idea/

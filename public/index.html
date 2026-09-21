@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+    <title>Nobita — Đơn mua hàng</title>
+    <link rel="stylesheet" href="/assets/vendor/@fortawesome/fontawesome-free/css/brands.css" />
+    <link rel="stylesheet" href="/assets/vendor/@fortawesome/fontawesome-free/css/regular.css" />
+    <link rel="stylesheet" href="/assets/vendor/@fortawesome/fontawesome-free/css/solid.css" />
+    <link rel="stylesheet" href="/assets/vendor/@fortawesome/fontawesome-free/css/fontawesome.css" />
+    <link rel="stylesheet" href="/assets/vendor/simple-line-icons/css/simple-line-icons.css" />
+    <link rel="stylesheet" href="/assets/css/bootstrap.css" />
+    <link rel="stylesheet" href="/assets/css/app.css" id="maincss" />
+    <link rel="stylesheet" href="/assets/css/theme-e.css" />
+    <link rel="stylesheet" href="/assets/css/style.css" />
+    <link rel="stylesheet" href="/theme/basso/statics/css/responsive.css" />
+    <link rel="stylesheet" href="/assets/vendor/select2/dist/css/select2.css" />
+    <link rel="stylesheet" href="/assets/vendor/@ttskch/select2-bootstrap4-theme/dist/select2-bootstrap4.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/jquery-datetimepicker/2.5.20/jquery.datetimepicker.min.css"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+    <style>
+      body.layout-fixed { margin: 0; }
+      .section-container { margin-left: 0 !important; margin-top: 55px !important; }
+      .content-wrapper { padding: 20px; }
+      .aside-container { display: none !important; }
+      .arrow-none { -moz-appearance: textfield; }
+      .arrow-none::-webkit-outer-spin-button,
+      .arrow-none::-webkit-inner-spin-button { -webkit-appearance: none; display: none; }
+      #view-orders {
+        overflow-x: hidden;
+        max-width: 100%;
+      }
+      #view-orders > .card-header {
+        overflow: visible;
+      }
+      #view-orders .tab-content {
+        overflow-x: hidden;
+        max-width: 100%;
+      }
+      #pane-orders {
+        max-width: 100%;
+        overflow-x: hidden;
+      }
+      #pane-orders .orders-table-wrap {
+        width: 100%;
+        max-width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      html,
+      body {
+        overflow-x: hidden;
+        max-width: 100%;
+      }
+      .wrapper,
+      .section-container,
+      .content-wrapper {
+        max-width: 100%;
+        overflow-x: hidden;
+      }
+      #view-orders > .card-header .card-title.order-card-title {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+        border-bottom: solid 1px #e2e2e2;
+        padding-bottom: 8px;
+        margin-bottom: 0;
+      }
+      #view-orders > .card-header .order-card-actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        float: none;
+        margin-left: auto;
+        text-transform: none;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+    </style>
+  </head>
+  <body class="layout-fixed">
+    <div class="side-backdrop" id="sideBackdrop" hidden></div>
+    <aside class="side-drawer" id="sideDrawer" aria-hidden="true">
+      <div class="side-drawer-brand">Nobita</div>
+      <nav class="side-drawer-nav">
+        <a href="javascript:" class="side-nav-link is-active" data-section="orders">
+          <i class="fa fa-list-alt"></i>
+          <span>Đơn hàng</span>
+        </a>
+        <a href="javascript:" class="side-nav-link" data-section="settings">
+          <i class="fa fa-cog"></i>
+          <span>Cài đặt</span>
+        </a>
+      </nav>
+    </aside>
+
+    <div class="wrapper">
+      <header class="topnavbar-wrapper">
+        <nav class="navbar topnavbar">
+          <div class="navbar-header d-flex align-items-center">
+            <button type="button" class="btn-hamburger" id="btnMenu" aria-label="Menu">
+              <span></span><span></span><span></span>
+            </button>
+            <a class="navbar-brand" href="/">
+              <div class="brand-logo d-flex align-items-center text-white font-weight-bold pl-2">
+                Nobita
+              </div>
+            </a>
+          </div>
+        </nav>
+      </header>
+
+      <section class="section-container">
+        <div class="content-wrapper">
+          <!-- VIEW: Đơn hàng -->
+          <div class="card card-default" id="view-orders">
+            <div class="card-header">
+              <div class="card-title order-card-title">
+                <span>Tạo đơn mua hàng website</span>
+                <div class="order-card-actions">
+                  <span class="text-danger" style="text-transform: none"
+                    >Total pending: $ <span id="totalPending">0.00</span></span
+                  >
+                  <span class="text-muted mr-3" style="font-size: 13px"
+                    >User: <b id="currentUserLabel">Vinh</b></span
+                  >
+                  <button class="btn btn-outline-secondary btn-xs" type="button" id="btnRefreshOrders" title="Tải lại từ Basso">
+                    <i class="fa fa-sync"></i>
+                    Làm mới
+                  </button>
+                  <button class="btn btn-success btn-xs" type="button" id="btnExport">
+                    <i class="fa fa-file-export"></i>
+                    Xuất Excel
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div class="card-body">
+              <div role="tabpanel">
+                <ul class="nav nav-tabs" role="tablist" id="tabs">
+                  <li class="nav-item">
+                    <a class="nav-link" href="#tab_need" data-toggle="tab" data-status="can_xu_ly"
+                      title="Đơn tab need_handle trên Basso (PIC = bạn)"
+                      >Cần Xử lý (<span data-count="can_xu_ly">0</span>)</a
+                    >
+                  </li>
+                  <li class="nav-item">
+                    <a class="nav-link" href="#tab_report" data-toggle="tab" data-status="bao_cao"
+                      >Báo cáo (<span data-count="bao_cao">0</span>)</a
+                    >
+                  </li>
+                  <li class="nav-item">
+                    <a class="nav-link active" href="#tab_order" data-toggle="tab" data-status="can_mua_order"
+                      >Cần mua đơn order (<span data-count="can_mua_order">0</span>)</a
+                    >
+                  </li>
+                  <li class="nav-item">
+                    <a class="nav-link" href="#tab_co" data-toggle="tab" data-status="can_mua_co"
+                      >Cần mua đơn CO (<span data-count="can_mua_co">0</span>)</a
+                    >
+                  </li>
+                  <li class="nav-item">
+                    <a class="nav-link" href="#tab_send" data-toggle="tab" data-status="gui_don"
+                      >Gửi đơn (<span data-count="gui_don">0</span>)</a
+                    >
+                  </li>
+                  <li class="nav-item">
+                    <a class="nav-link" href="#tab_buying" data-toggle="tab" data-status="dang_mua"
+                      >Đang mua (<span data-count="dang_mua">0</span>)</a
+                    >
+                  </li>
+                </ul>
+
+                <div class="tab-content">
+                  <!-- Tabs danh sách đơn -->
+                  <div class="tab-pane active" id="pane-orders" role="tabpanel">
+                    <form class="form-group" autocomplete="off" onsubmit="return false">
+                      <div class="input-group">
+                        <input type="text" class="form-control" id="searchInput" placeholder="Tìm theo mã đơn lẻ, sđt, link web..." />
+                        <div class="input-group-append site-filter-append" style="width: 200px">
+                          <select class="form-control no-radius select2-order" id="siteFilter" style="border-radius: 0 !important">
+                            <option value="">Tất cả site</option>
+                          </select>
+                        </div>
+                        <div class="input-group-append">
+                          <button class="btn btn-primary btn-sm" type="button" id="btnSearch">
+                            <i class="fa fa-search"></i> Tìm đơn
+                          </button>
+                        </div>
+                        <div class="input-group-append">
+                          <button class="btn btn-outline-secondary btn-sm" type="button" id="btnSyncSheet" title="Đọc Order # / Tracking từ Excel">
+                            <i class="fa fa-sync"></i> Đồng bộ Sheet
+                          </button>
+                        </div>
+                      </div>
+                    </form>
+
+                    <div class="table-responsive orders-table-wrap">
+                    <table class="table table-hover table-bordered mb-0">
+                      <thead>
+                        <tr>
+                          <th style="min-width: 40px">STT</th>
+                          <th style="min-width: 100px">Mã ĐH</th>
+                          <th style="min-width: 120px">Khách hàng</th>
+                          <th style="min-width: 100px">Tổng tiền</th>
+                          <th style="min-width: 100px">Website</th>
+                          <th style="min-width: 120px">Order# / Tracking</th>
+                          <th style="min-width: 110px">
+                            <div class="co-table-sort-header">
+                              <span>Sale ends</span>
+                              <div class="co-table-sort-stack">
+                                <i class="fa fa-sort-up item-no-active"></i>
+                                <i class="fa fa-sort-down item-no-active"></i>
+                              </div>
+                            </div>
+                          </th>
+                          <th style="min-width: 100px; max-width: 100px">Nhân viên</th>
+                          <th style="min-width: 160px">Ghi chú</th>
+                          <th style="min-width: 90px" width="90">Thao tác</th>
+                          <th style="min-width: 120px" title="PTTT lần gửi gần nhất cùng website (Đơn Admin)">Gợi ý</th>
+                          <th style="min-width: 100px" title="Người xử lý (PIC)">PIC</th>
+                        </tr>
+                      </thead>
+                      <tbody id="ordersBody" class="text-center"></tbody>
+                    </table>
+                    </div>
+                    <div id="ordersPager" class="orders-pager" hidden></div>
+                    <p class="text-center text-muted py-4 mb-0" id="emptyState" hidden>Không có đơn nào.</p>
+                  </div>
+
+                  <!-- Tab Báo cáo: đơn quá 3 ngày chưa mua (gom theo website) -->
+                  <div class="tab-pane" id="pane-report" role="tabpanel" hidden>
+                    <p class="text-muted small mb-2">
+                      Tổng hợp đơn ở trạng thái chờ mua / cần xử lý, <b>quá 3 ngày</b> chưa có Order #, gom theo website.
+                    </p>
+                    <div class="table-responsive">
+                      <table class="table table-bordered report-table mb-0" id="reportTable">
+                        <thead>
+                          <tr>
+                            <th colspan="7" class="report-date-head" id="reportDateHead">—</th>
+                          </tr>
+                          <tr>
+                            <th style="width: 50px">STT</th>
+                            <th style="min-width: 100px">Website</th>
+                            <th style="width: 120px">Số đơn mua chậm</th>
+                            <th style="width: 110px">Số tiền</th>
+                            <th style="width: 100px">Ngày tạo đơn</th>
+                            <th style="width: 110px">Người xử lý</th>
+                            <th>Lý do</th>
+                          </tr>
+                        </thead>
+                        <tbody id="reportBody"></tbody>
+                      </table>
+                    </div>
+                    <p class="text-center text-muted py-4 mb-0" id="reportEmpty" hidden>Không có website nào quá 3 ngày chưa mua.</p>
+                  </div>
+
+                  <!-- Tab Gửi đơn = gửi Excel / Google Sheet -->
+                  <div class="tab-pane" id="pane-send" role="tabpanel" hidden>
+                    <table class="table table-striped table-bordered" id="buyTable">
+                      <thead>
+                        <tr>
+                          <th width="50">STT</th>
+                          <th width="120">Mã ĐH</th>
+                          <th style="min-width: 220px" colspan="2">Sản phẩm</th>
+                          <th>Variant</th>
+                          <th width="50">SL</th>
+                          <th width="140">Giá mua</th>
+                          <th>Tổng giá mua</th>
+                          <th>Order #</th>
+                          <th>Tracking</th>
+                          <th>Ghi chú</th>
+                          <th></th>
+                        </tr>
+                      </thead>
+                      <tbody id="buyBody" class="text-center"></tbody>
+                    </table>
+
+                    <p class="text-center text-muted py-3" id="buyEmpty" hidden>Chưa có sản phẩm. Bấm “Thêm tất cả” / “Thêm” từ tab đơn.</p>
+
+                    <br />
+                    <div class="row pb-3">
+                      <div class="col-md-12 col-lg-5 offset-lg-1 col-xl-4 offset-xl-2">
+                        <table class="table border-vertical">
+                          <tbody>
+                            <tr>
+                              <th class="text-right"><span class="text-danger">*</span> Thời gian</th>
+                              <td><input type="text" class="form-control input-sm" id="oi_created_time" autocomplete="off" placeholder="dd-mm-yyyy" /></td>
+                            </tr>
+                            <tr>
+                              <th class="text-right"><span class="text-danger">*</span> Warehouse</th>
+                              <td>
+                                <select class="form-control input-sm" id="oi_warehouse">
+                                  <option value="">- Lựa chọn -</option>
+                                </select>
+                              </td>
+                            </tr>
+                            <tr>
+                              <th class="text-right"><span class="text-danger">*</span> Người gửi đơn</th>
+                              <td><input type="text" disabled class="form-control input-sm" id="oi_buyer" value="Vinh" /></td>
+                            </tr>
+                            <tr>
+                              <th class="text-right">Ghi chú</th>
+                              <td><input type="text" class="form-control input-sm" id="oi_note" /></td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+
+                      <div class="col-md-12 col-lg-5 col-xl-4">
+                        <table class="table border-vertical">
+                          <tbody>
+                            <tr>
+                              <th class="text-right"><span class="text-danger">*</span> PTTT</th>
+                              <td>
+                                <select class="form-control input-sm" id="oi_payment">
+                                  <option value="">- Lựa chọn -</option>
+                                </select>
+                              </td>
+                            </tr>
+                            <tr>
+                              <th class="text-right" style="min-width: 110px">Tổng tiền hàng</th>
+                              <td>
+                                <div class="input-group">
+                                  <div class="input-group-prepend"><span class="input-group-text text-sm oi-cur" style="width: 50px">$</span></div>
+                                  <input type="text" class="form-control input-sm text-right arrow-none" id="oi_total" disabled />
+                                </div>
+                              </td>
+                            </tr>
+                            <tr>
+                              <th class="text-right">Ship web</th>
+                              <td>
+                                <div class="input-group">
+                                  <div class="input-group-prepend"><span class="input-group-text text-sm oi-cur" style="width: 50px">$</span></div>
+                                  <input type="number" step="0.01" min="0" class="form-control input-sm text-right arrow-none" id="oi_ship" value="0" />
+                                </div>
+                              </td>
+                            </tr>
+                            <tr>
+                              <th class="text-right">Tổng tiền mua</th>
+                              <td>
+                                <div class="input-group">
+                                  <div class="input-group-prepend"><span class="input-group-text text-sm oi-cur" style="width: 50px">$</span></div>
+                                  <input type="text" disabled class="form-control input-sm text-right" id="oi_subtotal" />
+                                </div>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    <div class="text-center">
+                      <button class="btn btn-success text-uppercase" type="button" id="btnCreateOrder" disabled>
+                        <i class="fa fa-check"></i>
+                        Gửi đơn hàng
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Tab Đang mua = tạo đơn Admin (Basso result_tab) -->
+                  <div class="tab-pane" id="pane-buying" role="tabpanel" hidden>
+                    <table class="table table-striped table-bordered" id="buyTableAdmin">
+                      <thead>
+                        <tr>
+                          <th width="50">STT</th>
+                          <th width="120">Mã ĐH</th>
+                          <th style="min-width: 220px" colspan="2">Sản phẩm</th>
+                          <th>Variant</th>
+                          <th width="50">SL</th>
+                          <th width="140">Giá mua</th>
+                          <th>Tổng giá mua</th>
+                          <th>Ghi chú</th>
+                          <th></th>
+                        </tr>
+                      </thead>
+                      <tbody id="buyBodyAdmin" class="text-center"></tbody>
+                    </table>
+
+                    <p class="text-center text-muted py-3" id="buyEmptyAdmin" hidden>Chưa có sản phẩm đang mua. Bấm “Thêm tất cả” / “Thêm” từ tab đơn.</p>
+
+                    <br />
+                    <div class="row pb-3">
+                      <div class="col-md-12 col-lg-5 offset-lg-1 col-xl-4 offset-xl-2">
+                        <table class="table border-vertical">
+                          <tbody>
+                            <tr>
+                              <th class="text-right"><span class="text-danger">*</span> Thời gian order</th>
+                              <td><input type="text" class="form-control input-sm" id="dm_created_time" autocomplete="off" placeholder="dd-mm-yyyy" /></td>
+                            </tr>
+                            <tr>
+                              <th class="text-right"><span class="text-danger">*</span> Quốc gia</th>
+                              <td>
+                                <select class="form-control input-sm" id="dm_country">
+                                  <option value="">- Lựa chọn -</option>
+                                </select>
+                              </td>
+                            </tr>
+                            <tr>
+                              <th class="text-right"><span class="text-danger">*</span> Warehouse</th>
+                              <td>
+                                <select class="form-control input-sm" id="dm_warehouse">
+                                  <option value="">- Lựa chọn -</option>
+                                </select>
+                              </td>
+                            </tr>
+                            <tr>
+                              <th class="text-right"><span class="text-danger">*</span> Order number</th>
+                              <td><input type="text" class="form-control input-sm" id="dm_order_number" /></td>
+                            </tr>
+                            <tr>
+                              <th class="text-right"><span class="text-danger">*</span> Người tạo đơn</th>
+                              <td><input type="text" disabled class="form-control input-sm" id="dm_buyer" value="" /></td>
+                            </tr>
+                            <tr>
+                              <th class="text-right">Ghi chú</th>
+                              <td><input type="text" class="form-control input-sm" id="dm_note" /></td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+
+                      <div class="col-md-12 col-lg-5 col-xl-4">
+                        <table class="table border-vertical">
+                          <tbody>
+                            <tr>
+                              <th class="text-right"><span class="text-danger">*</span> PTTT</th>
+                              <td>
+                                <select class="form-control input-sm" id="dm_payment">
+                                  <option value="">- Lựa chọn -</option>
+                                </select>
+                              </td>
+                            </tr>
+                            <tr>
+                              <th class="text-right" style="min-width: 110px">Tổng tiền hàng</th>
+                              <td>
+                                <div class="input-group">
+                                  <div class="input-group-prepend"><span class="input-group-text text-sm dm-cur" style="width: 50px">$</span></div>
+                                  <input type="text" class="form-control input-sm text-right arrow-none" id="dm_total" disabled />
+                                </div>
+                              </td>
+                            </tr>
+                            <tr>
+                              <th class="text-right">Ship web</th>
+                              <td>
+                                <div class="input-group">
+                                  <div class="input-group-prepend"><span class="input-group-text text-sm dm-cur" style="width: 50px">$</span></div>
+                                  <input type="number" step="0.01" min="0" class="form-control input-sm text-right arrow-none" id="dm_ship" value="0" />
+                                </div>
+                              </td>
+                            </tr>
+                            <tr>
+                              <th class="text-right">Giảm giá</th>
+                              <td>
+                                <div class="input-group">
+                                  <div class="input-group-prepend"><span class="input-group-text text-sm dm-cur" style="width: 50px">$</span></div>
+                                  <input type="number" step="0.01" min="0" class="form-control input-sm text-right arrow-none" id="dm_discount" value="0" />
+                                </div>
+                              </td>
+                            </tr>
+                            <tr>
+                              <th class="text-right">Tổng tiền mua</th>
+                              <td>
+                                <div class="input-group">
+                                  <div class="input-group-prepend"><span class="input-group-text text-sm dm-cur" style="width: 50px">$</span></div>
+                                  <input type="text" disabled class="form-control input-sm text-right" id="dm_subtotal" />
+                                </div>
+                              </td>
+                            </tr>
+                            <tr>
+                              <th class="text-right">Web Cashback</th>
+                              <td>
+                                <select class="form-control input-sm" id="dm_web_cashback">
+                                  <option value="">- Lựa chọn -</option>
+                                </select>
+                              </td>
+                            </tr>
+                            <tr>
+                              <th class="text-right">% Cashback</th>
+                              <td>
+                                <div class="input-group">
+                                  <div class="input-group-prepend"><span class="input-group-text text-sm">%</span></div>
+                                  <input type="number" step="0.01" min="0" class="form-control input-sm text-right" id="dm_cashback_rate" value="0" style="min-width: 45px" />
+                                </div>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    <div class="text-center">
+                      <button class="btn btn-success text-uppercase" type="button" id="btnCreateAdminOrder" disabled>
+                        <i class="fa fa-check"></i>
+                        Tạo đơn hàng
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- VIEW: Cài đặt -->
+          <div class="card card-default" id="view-settings" style="overflow-x: hidden" hidden>
+            <div class="card-header">
+              <div class="card-title">Cài đặt</div>
+            </div>
+            <div class="card-body">
+              <div class="settings-wrap">
+                <h5 class="mb-3">Google credentials (ghi Sheet)</h5>
+                <p class="text-muted small mb-2">
+                  Cần service account JSON hợp lệ. Sau khi tải lên, <b>Share</b> từng link Excel với email service account (quyền Editor).
+                </p>
+                <div class="mb-2">
+                  <span class="text-muted">Email hiện tại:</span>
+                  <code id="credEmail">—</code>
+                </div>
+                <div class="form-group">
+                  <input type="file" class="form-control-file" id="credFile" accept="application/json,.json" />
+                </div>
+                <button type="button" class="btn btn-outline-secondary btn-sm mb-4" id="btnUploadCred">
+                  <i class="fa fa-upload"></i> Tải credentials.json
+                </button>
+                <span class="text-muted ml-2 small" id="credHint"></span>
+
+                <h5 class="mb-3">Map PTTT → link Excel / Google Sheet</h5>
+                <p class="text-muted small">
+                  Mỗi PTTT một link sheet. Bấm <b>Map cột</b> để chọn chữ cột (A, B, C…) tương ứng nội dung — layout sheet khác nhau vẫn gửi cùng loại field.
+                  <b>Nobita ID</b> ghi dưới ngày trong ô Date, dạng:<br />
+                  <code>10/9/2026</code><br /><code>A3K9XM</code>
+                </p>
+                <table class="table table-bordered table-sm settings-table">
+                  <thead>
+                    <tr>
+                      <th style="width: 22%">Tên PTTT</th>
+                      <th>Link Excel / Google Sheet</th>
+                      <th style="width: 90px">Map cột</th>
+                      <th style="width: 50px"></th>
+                    </tr>
+                  </thead>
+                  <tbody id="settingsPtttBody"></tbody>
+                </table>
+                <button type="button" class="btn btn-outline-primary btn-sm mb-4" id="btnAddPttt">
+                  <i class="fa fa-plus"></i> Thêm PTTT
+                </button>
+
+                <h5 class="mb-3">Warehouse → địa chỉ</h5>
+                <p class="text-muted small">
+                  Ví dụ: Kho Hanoi = địa chỉ nhiều dòng. Cột <b>Kho</b> trên Excel sẽ lấy địa chỉ (xuống dòng giữ nguyên; nếu trống thì lấy tên kho).
+                </p>
+                <table class="table table-bordered table-sm settings-table">
+                  <thead>
+                    <tr>
+                      <th style="width: 28%">Tên warehouse</th>
+                      <th>Địa chỉ</th>
+                      <th style="width: 70px"></th>
+                    </tr>
+                  </thead>
+                  <tbody id="settingsWhBody"></tbody>
+                </table>
+                <button type="button" class="btn btn-outline-primary btn-sm mb-4" id="btnAddWarehouse">
+                  <i class="fa fa-plus"></i> Thêm warehouse
+                </button>
+
+                <div>
+                  <button type="button" class="btn btn-success" id="btnSaveSettings">
+                    <i class="fa fa-save"></i> Lưu cài đặt
+                  </button>
+                  <span class="text-muted ml-2 small" id="settingsSaveHint"></span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.4/dist/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/assets/vendor/select2/dist/js/select2.full.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-datetimepicker/2.5.20/jquery.datetimepicker.full.min.js"></script>
+    <script src="/app.js"></script>
+  </body>
+</html>

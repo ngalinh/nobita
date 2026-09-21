@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Áo thun Basic Cotton — Shop Demo</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="shop">
+      <article
+        class="shop-card"
+        data-nobita-product
+        data-name="Áo thun Basic Cotton"
+        data-sku="TEE-BASIC-01"
+        data-price="199000"
+        data-currency="VND"
+        data-size="M"
+        data-color="Đen"
+        data-stock="18"
+        data-stock-status="in_stock"
+      >
+        <div class="shop-hero" style="background: linear-gradient(135deg, #1f2937, #4b5563)">Áo</div>
+        <div class="shop-body">
+          <h1 data-testid="product-title">Áo thun Basic Cotton</h1>
+          <div data-testid="product-sku">SKU: TEE-BASIC-01</div>
+          <div class="price-lg" data-testid="product-price">199.000 ₫</div>
+
+          <div>
+            <div style="color: #5a6a7d; margin-bottom: 8px">Size</div>
+            <div class="opt-row" data-testid="product-size">
+              <span class="opt" data-testid="size-option" data-size-option="S">S</span>
+              <span class="opt" data-testid="size-option" data-size-option="M">M</span>
+              <span class="opt" data-testid="size-option" data-size-option="L">L</span>
+              <span class="opt" data-testid="size-option" data-size-option="XL">XL</span>
+            </div>
+          </div>
+
+          <div>
+            <div style="color: #5a6a7d; margin-bottom: 8px">Màu</div>
+            <div class="opt-row" data-testid="product-color">
+              <span class="opt" data-testid="color-option" data-color-option="Đen">Đen</span>
+              <span class="opt" data-testid="color-option" data-color-option="Trắng">Trắng</span>
+              <span class="opt" data-testid="color-option" data-color-option="Navy">Navy</span>
+            </div>
+          </div>
+
+          <div>
+            <span
+              class="stock-banner in"
+              data-testid="stock-status"
+              data-stock-status="in_stock"
+              >Còn hàng</span
+            >
+            <span data-testid="product-stock" style="margin-left: 8px; color: #5a6a7d">Tồn: 18</span>
+          </div>
+        </div>
+      </article>
+    </div>
+  </body>
+</html>

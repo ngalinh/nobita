@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Túi canvas Weekend — Shop Demo</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="shop">
+      <article
+        class="shop-card"
+        data-nobita-product
+        data-name="Túi canvas Weekend"
+        data-sku="BAG-WEEK-03"
+        data-price="450000"
+        data-currency="VND"
+        data-size="One size"
+        data-color="Beige"
+        data-stock="0"
+        data-stock-status="out_of_stock"
+      >
+        <div class="shop-hero" style="background: linear-gradient(135deg, #a16207, #ca8a04)">Túi</div>
+        <div class="shop-body">
+          <h1 data-testid="product-title">Túi canvas Weekend</h1>
+          <div data-testid="product-sku">SKU: BAG-WEEK-03</div>
+          <div class="price-lg" data-testid="product-price">450.000 ₫</div>
+
+          <div>
+            <div style="color: #5a6a7d; margin-bottom: 8px">Size</div>
+            <div class="opt-row">
+              <span class="opt" data-testid="size-option" data-size-option="One size">One size</span>
+            </div>
+            <div data-testid="product-size" hidden>One size</div>
+          </div>
+
+          <div>
+            <div style="color: #5a6a7d; margin-bottom: 8px">Màu</div>
+            <div class="opt-row">
+              <span class="opt" data-testid="color-option" data-color-option="Beige">Beige</span>
+              <span class="opt" data-testid="color-option" data-color-option="Olive">Olive</span>
+            </div>
+            <div data-testid="product-color" hidden>Beige</div>
+          </div>
+
+          <div>
+            <span
+              class="stock-banner out"
+              data-testid="stock-status"
+              data-stock-status="out_of_stock"
+              >Hết hàng</span
+            >
+            <span data-testid="product-stock" style="margin-left: 8px; color: #5a6a7d">Tồn: 0</span>
+          </div>
+        </div>
+      </article>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,370 @@
+[
+  {
+    "id": "SU050926105",
+    "status": "can_mua_order",
+    "customerName": "HATT Thu Nguyễn",
+    "customerType": "Sỉ vừa",
+    "total": 44.5,
+    "website": "macys",
+    "rate": "23,000đ",
+    "saleEnds": "14h 10/09/2026",
+    "staff": "Thùy Linh",
+    "note": "",
+    "phone": "0901111001",
+    "items": [
+      {
+        "id": "i1",
+        "name": "Women's Hatina Chunky Sole LaceUp Sneakers",
+        "url": "https://www.macys.com/shop/product/hatina-sneakers",
+        "image": "https://images.unsplash.com/photo-1549298916-b41d501d3772?w=80&h=80&fit=crop",
+        "size": "7",
+        "color": "Color:White",
+        "qty": 1,
+        "price": 44.5,
+        "note": "",
+        "orderNo": "",
+        "tracking": "",
+        "itemKey": "ZFHEF3"
+      }
+    ],
+    "handler": "Vinh"
+  },
+  {
+    "id": "SU040926103",
+    "status": "can_mua_order",
+    "customerName": "HATT Thu Nguyễn",
+    "customerType": "Sỉ vừa",
+    "total": 37.5,
+    "website": "macys",
+    "rate": "23,000đ",
+    "saleEnds": "14h 10/09/2026",
+    "staff": "Thuỷ",
+    "note": "",
+    "phone": "0901111001",
+    "items": [
+      {
+        "id": "i2",
+        "name": "Michael Kors Jet Set Travel Medium Logo Tote",
+        "url": "https://www.macys.com/shop/product/mk-tote",
+        "image": "https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=80&h=80&fit=crop",
+        "size": "One Size",
+        "color": "Brown",
+        "qty": 1,
+        "price": 37.5,
+        "note": ""
+      }
+    ],
+    "handler": "Vinh"
+  },
+  {
+    "id": "SU06092609",
+    "status": "can_mua_order",
+    "customerName": "Thuỳ Duyên",
+    "customerType": "CTV",
+    "total": 19.99,
+    "website": "belk",
+    "rate": "27,500đ",
+    "saleEnds": "",
+    "staff": "Vinh",
+    "note": "",
+    "phone": "0902222002",
+    "items": [
+      {
+        "id": "i3",
+        "name": "Nike Court Vision Low Next Nature",
+        "url": "https://www.belk.com/product/nike-court",
+        "image": "https://images.unsplash.com/photo-1606107557195-0e29a4b5b4aa?w=80&h=80&fit=crop",
+        "size": "8",
+        "color": "White/Black",
+        "qty": 1,
+        "price": 19.99,
+        "note": "",
+        "itemKey": "KVPQCV",
+        "orderNo": "avccc",
+        "tracking": "addqweee"
+      }
+    ],
+    "handler": "Vinh"
+  },
+  {
+    "id": "SU030926102",
+    "status": "can_mua_order",
+    "customerName": "HATT Hân Nguyễn",
+    "customerType": "Sỉ vừa",
+    "total": 24.49,
+    "website": "crocs",
+    "rate": "29,000đ",
+    "saleEnds": "14h 10/09/2026",
+    "staff": "Vinh",
+    "note": "off 30% khi mua 2 đôi",
+    "phone": "0903333003",
+    "items": [
+      {
+        "id": "i4",
+        "name": "Classic Clog - Unisex",
+        "url": "https://www.crocs.com/p/classic-clog",
+        "image": "https://images.unsplash.com/photo-1603487742131-4160ec999306?w=80&h=80&fit=crop",
+        "size": "M7/W9",
+        "color": "Black",
+        "qty": 1,
+        "price": 24.49,
+        "note": ""
+      }
+    ],
+    "handler": ""
+  },
+  {
+    "id": "SU07092608",
+    "status": "can_mua_order",
+    "customerName": "Phương Dung",
+    "customerType": "CTV",
+    "total": 17.77,
+    "website": "belk",
+    "rate": "27,500đ",
+    "saleEnds": "",
+    "staff": "Vân",
+    "note": "",
+    "phone": "0904444004",
+    "items": [
+      {
+        "id": "i5",
+        "name": "Levi's 501 Original Fit Jeans",
+        "url": "https://www.belk.com/product/levis-501",
+        "image": "https://images.unsplash.com/photo-1542272604-787c3835535d?w=80&h=80&fit=crop",
+        "size": "28x30",
+        "color": "Medium Wash",
+        "qty": 1,
+        "price": 17.77,
+        "note": ""
+      }
+    ],
+    "handler": "Thảo"
+  },
+  {
+    "id": "BS25082602",
+    "status": "can_mua_order",
+    "customerName": "Nguyễn Ngọc Cường",
+    "customerType": "Khách Lẻ",
+    "total": 57.43,
+    "website": "amazon",
+    "rate": "29,500đ",
+    "saleEnds": "",
+    "staff": "Thảo",
+    "note": "",
+    "phone": "0905555005",
+    "items": [
+      {
+        "id": "i6",
+        "name": "STANLEY IceFlow Flip Straw 20 Bottle 24 oz Sorbet Garden",
+        "url": "https://www.amazon.com/STANLEY-IceFlow/dp/B0EXAMPLE",
+        "image": "https://images.unsplash.com/photo-1602143407151-7111542de6e8?w=80&h=80&fit=crop",
+        "size": "24 Ounces",
+        "color": "Sorbet Garden",
+        "qty": 1,
+        "price": 25,
+        "note": ""
+      },
+      {
+        "id": "i7",
+        "name": "Anker PowerBank 20000mAh",
+        "url": "https://www.amazon.com/Anker-PowerBank/dp/B0EXAMPLE2",
+        "image": "https://images.unsplash.com/photo-1609091839311-b65b6aba4c89?w=80&h=80&fit=crop",
+        "size": "One Size",
+        "color": "Black",
+        "qty": 1,
+        "price": 32.43,
+        "note": ""
+      }
+    ],
+    "handler": "Thùy Linh"
+  },
+  {
+    "id": "SU05092606",
+    "status": "can_mua_order",
+    "customerName": "Thảo Vân Lê",
+    "customerType": "CTV",
+    "total": 24.49,
+    "website": "crocs",
+    "rate": "29,000đ",
+    "saleEnds": "",
+    "staff": "Thảo",
+    "note": "Buy 2 Select Footwear Get 30%",
+    "phone": "0906666006",
+    "items": [
+      {
+        "id": "i8",
+        "name": "Echo Clog - Adult",
+        "url": "https://www.crocs.com/p/echo-clog",
+        "image": "https://images.unsplash.com/photo-1595950653106-6c9ebd614d3a?w=80&h=80&fit=crop",
+        "size": "M8/W10",
+        "color": "Bone",
+        "qty": 1,
+        "price": 24.49,
+        "note": ""
+      }
+    ],
+    "handler": "Thùy Linh"
+  },
+  {
+    "id": "SU06092605",
+    "status": "can_mua_order",
+    "customerName": "Thảo Vân Lê",
+    "customerType": "CTV",
+    "total": 19.99,
+    "website": "belk",
+    "rate": "27,500đ",
+    "saleEnds": "",
+    "staff": "Tâm",
+    "note": "",
+    "phone": "0906666006",
+    "items": [
+      {
+        "id": "i9",
+        "name": "UGG Classic Mini II Boot",
+        "url": "https://www.belk.com/product/ugg-mini",
+        "image": "https://images.unsplash.com/photo-1543163521-1bf539c55dd2?w=80&h=80&fit=crop",
+        "size": "7",
+        "color": "Chestnut",
+        "qty": 1,
+        "price": 19.99,
+        "note": ""
+      }
+    ],
+    "handler": "Vinh"
+  },
+  {
+    "id": "SU010926112",
+    "status": "can_mua_order",
+    "customerName": "Xa Thanh Huyền",
+    "customerType": "Sỉ vừa",
+    "total": 25,
+    "website": "amazon",
+    "rate": "26,000đ",
+    "saleEnds": "",
+    "staff": "Thảo",
+    "note": "8/9 Vân gửi NH",
+    "phone": "0907777007",
+    "items": [
+      {
+        "id": "i10",
+        "name": "STANLEY IceFlow Flip Straw 20 Bottle 24 oz Sorbet Garden",
+        "url": "https://www.amazon.com/STANLEY-IceFlow/dp/B0EXAMPLE",
+        "image": "https://images.unsplash.com/photo-1602143407151-7111542de6e8?w=80&h=80&fit=crop",
+        "size": "24 Ounces",
+        "color": "Sorbet Garden",
+        "qty": 1,
+        "price": 25,
+        "note": ""
+      }
+    ],
+    "handler": "Vinh"
+  },
+  {
+    "id": "SU28082620",
+    "status": "can_mua_order",
+    "customerName": "Lan Anh",
+    "customerType": "CTV",
+    "total": 89,
+    "website": "nordstrom",
+    "rate": "25,500đ",
+    "saleEnds": "18h 12/09/2026",
+    "staff": "Vân",
+    "note": "",
+    "phone": "0908888008",
+    "items": [
+      {
+        "id": "i11",
+        "name": "Nike Air Force 1 '07",
+        "url": "https://www.nordstrom.com/s/nike-af1",
+        "image": "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=80&h=80&fit=crop",
+        "size": "9",
+        "color": "White",
+        "qty": 1,
+        "price": 89,
+        "note": ""
+      }
+    ],
+    "handler": "Vinh"
+  },
+  {
+    "id": "SU02092621",
+    "status": "can_mua_co",
+    "customerName": "Minh Tuấn",
+    "customerType": "Khách Lẻ",
+    "total": 120,
+    "website": "adidas",
+    "rate": "24,000đ",
+    "saleEnds": "",
+    "staff": "Thuỷ",
+    "note": "check size trước khi mua",
+    "phone": "0909999009",
+    "items": [
+      {
+        "id": "i12",
+        "name": "Ultraboost 1.0 Shoes",
+        "url": "https://www.adidas.com/us/ultraboost",
+        "image": "https://images.unsplash.com/photo-1608231387042-66d1773070a5?w=80&h=80&fit=crop",
+        "size": "10.5",
+        "color": "Core Black",
+        "qty": 1,
+        "price": 120,
+        "note": ""
+      }
+    ],
+    "handler": "Vân"
+  },
+  {
+    "id": "SU30082622",
+    "status": "can_mua_co",
+    "customerName": "Hồng Nhung",
+    "customerType": "Sỉ vừa",
+    "total": 55.2,
+    "website": "zara",
+    "rate": "26,500đ",
+    "saleEnds": "12h 11/09/2026",
+    "staff": "Tâm",
+    "note": "",
+    "phone": "0910101010",
+    "items": [
+      {
+        "id": "i13",
+        "name": "ZW Collection Mid-Rise Straight Jeans",
+        "url": "https://www.zara.com/us/en/zw-jeans",
+        "image": "https://images.unsplash.com/photo-1541099649105-f69ad21f3246?w=80&h=80&fit=crop",
+        "size": "36",
+        "color": "Blue",
+        "qty": 2,
+        "price": 27.6,
+        "note": ""
+      }
+    ],
+    "handler": ""
+  },
+  {
+    "id": "SU07092623",
+    "status": "can_mua_order",
+    "customerName": "Quốc Bảo",
+    "customerType": "CTV",
+    "total": 42,
+    "website": "gap",
+    "rate": "26,000đ",
+    "saleEnds": "",
+    "staff": "Bình",
+    "note": "",
+    "phone": "0911212121",
+    "items": [
+      {
+        "id": "i14",
+        "name": "Gap Logo Hoodie",
+        "url": "https://www.gap.com/browse/product.do?pid=hoodie",
+        "image": "https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=80&h=80&fit=crop",
+        "size": "L",
+        "color": "Navy",
+        "qty": 1,
+        "price": 42,
+        "note": ""
+      }
+    ],
+    "handler": "Vinh"
+  }
+]

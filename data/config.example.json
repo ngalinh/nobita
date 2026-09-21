@@ -1,0 +1,50 @@
+{
+  "brightdataApiToken": "",
+  "partner": {
+    "enabled": true,
+    "baseUrl": "https://basso.vn",
+    "adminBaseUrl": "",
+    "apiKey": "",
+    "email": "",
+    "password": ""
+  },
+  "settings": {
+    "pttt": [
+      {
+        "id": "pttt-1",
+        "name": "PTTT mẫu",
+        "sheetUrl": "",
+        "columns": {
+          "date": "A",
+          "website": "B",
+          "items": "C",
+          "sizeColor": "D",
+          "subTotal": "E",
+          "qty": "F",
+          "shipDiscount": "G",
+          "kho": "H",
+          "maDh": "I",
+          "itemKey": "A",
+          "orderNo": "J",
+          "tracking": "K"
+        }
+      }
+    ],
+    "warehouses": [
+      {
+        "id": "wh-1",
+        "name": "Kho mẫu",
+        "address": ""
+      }
+    ]
+  },
+  "telegram": {
+    "enabled": false,
+    "botToken": "",
+    "chatId": "",
+    "pollMinutes": 5,
+    "notifySaleEndsToday": true,
+    "notifyUrgentBuy": true,
+    "baseUrl": ""
+  }
+}

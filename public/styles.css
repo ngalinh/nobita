@@ -1,0 +1,574 @@
+/* Override nhẹ: giữ CSS Basso, sửa chỗ bị “link hóa” + Select2 PIC */
+
+/* Chỉ Mã ĐH mới xanh; ô bấm để xổ dropdown giữ màu chữ thường */
+.table tbody a.toggle-hit,
+.table tbody a.toggle-hit:hover,
+.table tbody a.toggle-hit:focus {
+  color: inherit !important;
+  text-decoration: none !important;
+  cursor: pointer;
+  font-weight: inherit;
+}
+
+.table tbody a.order-expand {
+  color: #23b7e5 !important;
+  font-weight: bold;
+}
+
+.table tbody a.order-expand:hover {
+  text-decoration: underline;
+}
+
+.orders-pager {
+  padding: 0 4px 4px;
+  margin-top: 0;
+}
+
+.orders-pager .basso-pager-meta {
+  font-size: 14px;
+  color: #656565;
+  padding-bottom: 8px;
+}
+
+.orders-pager .basso-pager-meta input.js-page-input {
+  height: 30px;
+  border: 1px solid #dde6e9;
+  border-radius: 3px;
+  margin: 0 4px;
+  padding: 2px 4px;
+}
+
+.orders-pager .pagination .page-item.disabled .page-link {
+  pointer-events: none;
+  opacity: 0.45;
+}
+
+.orders-pager .pagination .page-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Cuộn ngang chỉ trong bảng — tránh thanh cuộn trang thừa khoảng trống */
+.orders-table-wrap {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: visible;
+}
+
+.orders-table-wrap .table {
+  margin-bottom: 0;
+  width: max-content;
+  min-width: 100%;
+}
+
+.orders-table-wrap .select2-container {
+  z-index: 5;
+}
+
+.orders-table-wrap .select2-dropdown {
+  z-index: 20;
+}
+
+/* Cột PIC — Select2 1 hàng, tên giữa, mũi tên trong ô */
+.table td.pic-cell {
+  vertical-align: middle !important;
+  text-align: center !important;
+  width: 150px;
+  min-width: 150px;
+  max-width: 160px;
+  padding: 8px 6px !important;
+}
+
+.table td.action-cell {
+  vertical-align: middle !important;
+  min-width: 100px;
+  padding: 4px 6px !important;
+}
+
+.table td.action-cell .action-link {
+  display: block;
+  width: 100%;
+  padding: 4px 2px;
+  border-bottom: 1px solid #dde6e9;
+  line-height: 1.3;
+  font-size: 12px;
+}
+
+.table td.action-cell .action-link:last-child {
+  border-bottom: 0;
+}
+
+.table td.action-cell .action-link-cancel {
+  color: gray;
+}
+
+.table td.action-cell .action-link.is-busy {
+  pointer-events: none;
+  opacity: 0.65;
+}
+
+.table td.pttt-suggest-cell {
+  vertical-align: middle !important;
+  max-width: 140px;
+  font-size: 12px;
+}
+
+.sheet-status-cell {
+  vertical-align: middle !important;
+  white-space: nowrap;
+}
+
+.sheet-status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.sheet-status-pill {
+  display: inline-block;
+  min-width: 88px;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.sheet-status-pill.is-empty {
+  background: #f0f3f5;
+  color: #8a97a0;
+}
+
+.sheet-status-pill.is-partial {
+  background: #fff4de;
+  color: #b36b00;
+}
+
+.sheet-status-pill.is-full {
+  background: #e6f7ed;
+  color: #1b7a3d;
+}
+
+/* Báo cáo mua chậm */
+.report-table {
+  border: 1px solid #222;
+  background: #fff;
+}
+
+.report-table th,
+.report-table td {
+  border: 1px solid #222 !important;
+  vertical-align: middle;
+}
+
+.report-table thead th {
+  background: #ffe600 !important;
+  color: #111;
+  font-weight: 700;
+  text-align: center;
+}
+
+.report-table .report-date-head {
+  font-size: 16px;
+  letter-spacing: 0.5px;
+}
+
+.report-table .js-report-reason {
+  min-height: 52px;
+  resize: vertical;
+}
+
+/* Ghi chú đơn — giống Basso: không hiện góc kéo resize */
+textarea.admin_note.no-resize-fit {
+  resize: none !important;
+  overflow: hidden;
+}
+
+.pic-cell > div {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+}
+
+.pic-cell .select2-container {
+  width: 130px !important;
+  max-width: 130px !important;
+  display: inline-block !important;
+  margin: 0 auto !important;
+  text-align: left;
+  vertical-align: middle;
+}
+
+/* Ép 1 hàng: tránh mũi tên rớt xuống dưới */
+.pic-cell .select2-container .select2-selection--single {
+  position: relative !important;
+  display: block !important;
+  height: 35px !important;
+  min-height: 35px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  overflow: hidden !important;
+  border: 1px solid #dde6e9 !important;
+  border-radius: 4px !important;
+  background-color: #fff !important;
+  box-shadow: none !important;
+}
+
+.pic-cell .select2-container .select2-selection--single .select2-selection__rendered {
+  display: block !important;
+  width: auto !important;
+  max-width: none !important;
+  padding: 0 28px 0 8px !important;
+  margin: 0 !important;
+  line-height: 33px !important;
+  height: 33px !important;
+  color: #656565 !important;
+  text-align: center !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  float: none !important;
+}
+
+.pic-cell .select2-container .select2-selection--single .select2-selection__arrow {
+  position: absolute !important;
+  top: 0 !important;
+  right: 0 !important;
+  left: auto !important;
+  bottom: auto !important;
+  width: 24px !important;
+  height: 35px !important;
+  margin: 0 !important;
+  float: none !important;
+}
+
+.pic-cell .select2-container .select2-selection--single .select2-selection__arrow b {
+  margin-top: -3px !important;
+  margin-left: -5px !important;
+}
+
+.pic-cell select.user-pic {
+  width: 130px !important;
+}
+
+/* Filter site — Select2 giống Basso (.select2-order) */
+.input-group-append.site-filter-append {
+  width: 200px !important;
+  flex: 0 0 200px !important;
+  max-width: 200px !important;
+  position: relative;
+}
+
+#siteFilter + .select2-container {
+  width: 200px !important;
+  max-width: 200px !important;
+  display: block !important;
+  margin: 0 !important;
+  vertical-align: middle;
+}
+
+#siteFilter + .select2-container .select2-selection--single {
+  position: relative !important;
+  display: block !important;
+  width: 100% !important;
+  height: 35px !important;
+  min-height: 35px !important;
+  border-radius: 0 !important;
+  border-color: #dde6e9 !important;
+  overflow: hidden !important;
+  box-shadow: none !important;
+}
+
+#siteFilter + .select2-container .select2-selection--single .select2-selection__rendered {
+  display: block !important;
+  line-height: 33px !important;
+  height: 33px !important;
+  padding: 0 28px 0 12px !important;
+  margin: 0 !important;
+  color: #3a3f51;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  float: none !important;
+}
+
+#siteFilter + .select2-container .select2-selection--single .select2-selection__arrow {
+  position: absolute !important;
+  top: 0 !important;
+  right: 0 !important;
+  left: auto !important;
+  bottom: auto !important;
+  width: 24px !important;
+  height: 35px !important;
+  margin: 0 !important;
+}
+
+#siteFilter + .select2-container .select2-selection--single .select2-selection__arrow b {
+  top: 50% !important;
+  left: 50% !important;
+  margin-top: -2px !important;
+  margin-left: -4px !important;
+}
+
+/* Fix Select2 mouse wheel scrolling (Basso create.blade) */
+.select2-dropdown {
+  overflow: visible !important;
+  border: 1px solid #cfdbe2 !important;
+  border-radius: 4px !important;
+  box-shadow: 0 4px 14px rgba(58, 63, 81, 0.12);
+}
+
+.select2-results__options {
+  overflow-y: auto !important;
+  max-height: 300px !important;
+  -webkit-overflow-scrolling: touch;
+}
+
+.select2-results__options::-webkit-scrollbar {
+  width: 8px;
+}
+
+.select2-results__options::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+.select2-results__options::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
+}
+
+.select2-results__options::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+.select2-search--dropdown {
+  padding: 8px !important;
+}
+
+.select2-search--dropdown .select2-search__field {
+  border: 1px solid #cfdbe2 !important;
+  border-radius: 4px !important;
+  padding: 6px 8px !important;
+  outline: none !important;
+}
+
+.select2-results__option {
+  padding: 7px 10px !important;
+  font-size: 0.875rem;
+}
+
+.select2-container--default .select2-results__option--highlighted[aria-selected],
+.select2-container--bootstrap4 .select2-results__option--highlighted[aria-selected] {
+  background-color: #23b7e5 !important;
+  color: #fff !important;
+}
+
+.select2-container--default .select2-results__option[aria-selected="true"] {
+  background-color: #e9f7fc;
+  color: #3a3f51;
+}
+
+/* Hamburger + side drawer */
+.navbar.topnavbar .navbar-header {
+  display: flex;
+  align-items: center;
+  width: auto;
+}
+
+.btn-hamburger {
+  display: inline-flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  width: 42px;
+  height: 42px;
+  margin-left: 8px;
+  padding: 8px 10px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.btn-hamburger:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.btn-hamburger span {
+  display: block;
+  height: 2px;
+  width: 20px;
+  background: #fff;
+  border-radius: 1px;
+}
+
+.side-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 24, 36, 0.45);
+  z-index: 1040;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.side-backdrop.is-open {
+  opacity: 1;
+}
+
+.side-drawer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 260px;
+  max-width: 86vw;
+  height: 100vh;
+  background: #3a3f51;
+  color: #fff;
+  z-index: 1050;
+  transform: translateX(-105%);
+  transition: transform 0.25s ease;
+  box-shadow: 8px 0 24px rgba(0, 0, 0, 0.18);
+  display: flex;
+  flex-direction: column;
+}
+
+.side-drawer.is-open {
+  transform: translateX(0);
+}
+
+.side-drawer-brand {
+  padding: 18px 20px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.side-drawer-nav {
+  padding: 12px 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.side-nav-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  color: rgba(255, 255, 255, 0.82) !important;
+  text-decoration: none !important;
+  font-size: 0.95rem;
+  border-left: 3px solid transparent;
+}
+
+.side-nav-link:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff !important;
+}
+
+.side-nav-link.is-active {
+  background: rgba(35, 183, 229, 0.18);
+  border-left-color: #23b7e5;
+  color: #fff !important;
+  font-weight: 600;
+}
+
+.side-nav-link i {
+  width: 18px;
+  text-align: center;
+  opacity: 0.9;
+}
+
+body.drawer-open {
+  overflow: hidden;
+}
+
+/* Cài đặt */
+.settings-wrap {
+  padding: 4px 4px 24px;
+  max-width: 980px;
+}
+
+.settings-table input.form-control,
+.settings-table textarea.form-control {
+  font-size: 13px;
+}
+
+.settings-table textarea.js-wh-address {
+  min-height: 72px;
+  resize: vertical;
+  line-height: 1.4;
+  white-space: pre-wrap;
+}
+
+.settings-table td {
+  vertical-align: middle;
+}
+
+.settings-table td.align-top {
+  vertical-align: top;
+  padding-top: 10px;
+}
+
+.colmap-panel {
+  background: #f7f9fb;
+  border: 1px solid #e2e8ee;
+  border-radius: 4px;
+  padding: 10px 12px;
+}
+
+.colmap-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 8px 12px;
+}
+
+.colmap-item label {
+  display: block;
+  font-size: 12px;
+  color: #5a6a7d;
+  margin-bottom: 2px;
+}
+
+.colmap-item input {
+  width: 64px;
+  text-align: center;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+/* DateTimePicker Thời gian — giống Basso (xdsoft) */
+.xdsoft_datetimepicker {
+  z-index: 1060 !important;
+  font-family: inherit;
+  box-shadow: 0 6px 18px rgba(58, 63, 81, 0.14);
+  border: 1px solid #cfdbe2;
+}
+
+.xdsoft_datetimepicker .xdsoft_calendar td.xdsoft_current,
+.xdsoft_datetimepicker .xdsoft_calendar td.xdsoft_current:hover {
+  background: #23b7e5 !important;
+  box-shadow: none !important;
+  color: #fff !important;
+}
+
+.xdsoft_datetimepicker .xdsoft_calendar td.xdsoft_today {
+  color: #23b7e5;
+}
+
+.xdsoft_datetimepicker .xdsoft_calendar td.xdsoft_disabled,
+.xdsoft_datetimepicker .xdsoft_calendar td.xdsoft_disabled:hover {
+  opacity: 0.35;
+  background: #f3f5f7 !important;
+  color: #9aa5b1 !important;
+  cursor: not-allowed;
+}
+
+#oi_created_time {
+  cursor: pointer;
+  background: #fff;
+}
