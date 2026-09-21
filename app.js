@@ -102,12 +102,28 @@ function getPartnerAuthHeaders() {
   return {};
 }
 
+/** Base path khi chạy dưới /b/<botId>/ trên ai.basso.vn (kiểu Deki). */
+const API_BASE = (() => {
+  const p = location.pathname.replace(/\/[^/]*\.html?$/i, "/").replace(/\/?$/, "");
+  if (/\/b\/[^/]+$/i.test(p) || /\/b\/[^/]+\//i.test(location.pathname)) {
+    const m = location.pathname.match(/^(\/b\/[^/]+)/i);
+    return m ? m[1] : "";
+  }
+  return "";
+})();
+
+function apiUrl(path) {
+  const clean = path.startsWith("/") ? path : `/${path}`;
+  return API_BASE + clean;
+}
+
 function apiFetch(url, opts = {}) {
   const headers = {
     ...(opts.headers || {}),
     ...getPartnerAuthHeaders(),
   };
-  return fetch(url, { ...opts, credentials: "include", headers });
+  const full = url.startsWith("http") || url.startsWith(API_BASE) ? url : apiUrl(url);
+  return fetch(full, { ...opts, credentials: "include", headers });
 }
 
 function toggle_row(ele) {

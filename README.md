@@ -39,8 +39,8 @@ Tuỳ chọn khác (thêm tay): `TELEGRAM_*`, `GOOGLE_*`, `BRIGHTDATA_*`, `PROXY
 ## Deploy lên ai.basso.vn
 
 1. Update bot từ GitHub → wizard chỉ điền **BASSO_API_KEY**.
-2. Đăng nhập ai.basso.vn (platform lưu Partner token trong phiên).
-3. Mở Nobita — SSO nhận tên user; API đơn dùng token phiên đó.
+2. Layout chuẩn platform: `index.html` + `app.js` + `styles.css` **ở root** (cạnh `server/`), giống Doraemon/Deki.
+3. Đăng nhập ai.basso.vn rồi mở Nobita.
 4. `NOBITA_DEV_MODE=0`.
 
 ## Không đưa lên git

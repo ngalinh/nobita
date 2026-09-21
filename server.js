@@ -705,6 +705,14 @@ function writeOrders(orders) {
 ensureData();
 
 app.use(express.json({ limit: "1mb" }));
+
+// UI ở root (platform bắt index.html cạnh server/) — không static cả repo (tránh lộ .env)
+app.get(["/", "/index.html"], (_req, res) => {
+  res.sendFile(path.join(__dirname, "index.html"));
+});
+app.get(["/app.js", "/styles.css"], (req, res) => {
+  res.sendFile(path.join(__dirname, path.basename(req.path)));
+});
 app.use(express.static(path.join(__dirname, "public")));
 
 /**
