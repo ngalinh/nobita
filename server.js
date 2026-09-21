@@ -355,6 +355,10 @@ async function getOrdersForApi({ force = false, userToken = "" } = {}) {
   }
 }
 
+function ordersFromRequest(req, { force = false } = {}) {
+  return getOrdersForApi({ force, userToken: extractBearerToken(req) });
+}
+
 function readMockOrders() {
   try {
     return JSON.parse(fs.readFileSync(MOCK_ORDERS_FILE, "utf8"));
@@ -1196,7 +1200,7 @@ app.post("/api/basso/sync-from-sheet", async (req, res) => {
   }
 
   try {
-    const live = await getOrdersForApi();
+    const live = await ordersFromRequest(req);
     const orders = live.orders || [];
     const buyList = readBuyList();
     let updatedItems = 0;
@@ -1401,7 +1405,7 @@ app.post("/api/basso/credentials", (req, res) => {
 app.get("/api/basso/orders", async (req, res) => {
   const force = String(req.query.refresh || "") === "1";
   const userToken = extractBearerToken(req);
-  const live = await getOrdersForApi({ force, userToken });
+  const live = await ordersFromRequest(req, { force });
   const buyList = readBuyList();
   const orders = live.orders || [];
   const pic = ((live.meta && live.meta.pic) || [])
@@ -1459,7 +1463,7 @@ app.get("/api/basso/orders", async (req, res) => {
 app.patch("/api/basso/orders/:id/note", async (req, res) => {
   const id = req.params.id;
   const note = String((req.body && req.body.note) || "");
-  const live = await getOrdersForApi();
+  const live = await ordersFromRequest(req);
   const order = findOrderInList(live.orders, id);
   if (!order) return res.status(404).json({ ok: false, error: "Không tìm thấy đơn" });
 
@@ -1486,7 +1490,7 @@ app.patch("/api/basso/orders/:id/handler", async (req, res) => {
   const id = req.params.id;
   let handler = String((req.body && req.body.handler) || "").trim();
   if (handler === "Lựa chọn") handler = "";
-  const live = await getOrdersForApi();
+  const live = await ordersFromRequest(req);
   const order = findOrderInList(live.orders, id);
   if (!order) return res.status(404).json({ ok: false, error: "Không tìm thấy đơn" });
 
@@ -1518,7 +1522,7 @@ app.patch("/api/basso/orders/:id/handler", async (req, res) => {
 app.patch("/api/basso/orders/:id/pttt", async (req, res) => {
   const id = req.params.id;
   let ptttId = String((req.body && req.body.ptttId) || "").trim();
-  const live = await getOrdersForApi();
+  const live = await ordersFromRequest(req);
   const order = findOrderInList(live.orders, id);
   if (!order) return res.status(404).json({ ok: false, error: "Không tìm thấy đơn" });
 
@@ -1545,7 +1549,7 @@ app.patch("/api/basso/orders/:id/pttt", async (req, res) => {
 app.patch("/api/basso/orders/:id/warehouse", async (req, res) => {
   const id = req.params.id;
   let warehouseId = String((req.body && req.body.warehouseId) || "").trim();
-  const live = await getOrdersForApi();
+  const live = await ordersFromRequest(req);
   const order = findOrderInList(live.orders, id);
   if (!order) return res.status(404).json({ ok: false, error: "Không tìm thấy đơn" });
 
@@ -1577,7 +1581,7 @@ app.get("/api/basso/buy-list", (_req, res) => {
 
 app.post("/api/basso/buy-list/add-all", async (req, res) => {
   const orderId = String((req.body && req.body.orderId) || "");
-  const live = await getOrdersForApi();
+  const live = await ordersFromRequest(req);
   const order = findOrderInList(live.orders, orderId);
   if (!order) return res.status(404).json({ ok: false, error: "Không tìm thấy đơn" });
   if (!order.items || !order.items.length) {
@@ -1612,7 +1616,7 @@ app.post("/api/basso/buy-list/add-all", async (req, res) => {
 app.post("/api/basso/buy-list/add-item", async (req, res) => {
   const orderId = String((req.body && req.body.orderId) || "");
   const itemId = String((req.body && req.body.itemId) || "");
-  const live = await getOrdersForApi();
+  const live = await ordersFromRequest(req);
   const order = findOrderInList(live.orders, orderId);
   if (!order) return res.status(404).json({ ok: false, error: "Không tìm thấy đơn" });
 
@@ -1804,7 +1808,7 @@ app.post("/api/basso/buy-list/create-admin-order", async (req, res) => {
 app.post("/api/basso/orders/:id/send-to-sheet", async (req, res) => {
   const id = req.params.id;
   const body = req.body || {};
-  const live = await getOrdersForApi();
+  const live = await ordersFromRequest(req);
   const order = findOrderInList(live.orders, id);
   if (!order) return res.status(404).json({ ok: false, error: "Không tìm thấy đơn" });
   if (!order.items || !order.items.length) {
