@@ -8,25 +8,26 @@ UI admin mua hàng (Basso-like) + Partner API + tab Gửi đơn (Sheet) / Đang 
 git clone https://github.com/ngalinh/nobita.git
 cd nobita
 npm install
-cp .env.example .env
+cp server/.env.example server/.env
 cp data/config.example.json data/config.json
-# Điền BASSO_* / TELEGRAM_* trong .env (không commit file này)
-node server.js
+# Điền BASSO_API_KEY / BASSO_EMAIL / BASSO_PASS trong server/.env
+npm start
 ```
 
-Mở: `http://localhost:3847`
+Mở: `http://localhost:3847` (hoặc PORT platform gán)
 
-## Biến môi trường quan trọng
+## Biến môi trường (bắt buộc trên wizard)
+
+Chỉ các key trong `server/.env.example` là bắt buộc:
 
 | Biến | Mục đích |
 |------|----------|
 | `BASSO_BASE_URL` | `https://basso.vn` |
 | `BASSO_API_KEY` / `BASSO_EMAIL` / `BASSO_PASS` | Partner login |
-| `BASSO_AUTH_URL` | SSO `ai.basso.vn/platform/api/auth/session` |
-| `NOBITA_DEV_MODE` | `1` khi test local không cookie; **`0` trên production** |
-| `TELEGRAM_*` | Bot báo Sale ends / Mua gấp |
+| `BASSO_AUTH_URL` | SSO session (đã có mặc định) |
+| `NOBITA_DEV_MODE` | `0` trên production |
 
-Credentials Google Sheet: đặt `credentials.json` (service account) — **không commit**.
+Tuỳ chọn (thêm tay vào `.env`, không nằm trong example): `TELEGRAM_*`, `GOOGLE_*`, `BRIGHTDATA_*`, `PROXY_URL`, `BASSO_ADMIN_BASE_URL`.
 
 ## Deploy lên ai.basso.vn
 

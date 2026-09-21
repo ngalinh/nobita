@@ -1,12 +1,16 @@
 {
-  "name": "nobita-order-mock",
+  "name": "nobita",
   "version": "1.1.0",
   "private": true,
-  "description": "Nobita local mock: paste product URL → Playwright scrape → decide send order",
+  "description": "Nobita — tạo đơn mua hàng website (Basso Partner)",
+  "main": "server/index.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node server.js",
+    "start": "node server/index.js",
+    "dev": "node server/index.js",
     "postinstall": "npx playwright install chromium"
+  },
+  "engines": {
+    "node": ">=18"
   },
   "dependencies": {
     "exceljs": "^4.4.0",

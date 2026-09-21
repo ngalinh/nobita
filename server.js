@@ -3,27 +3,33 @@ const path = require("path");
 const fs = require("fs");
 
 // Load .env trước mọi module phụ thuộc process.env
+// Ưu tiên: server/.env (platform ai.basso.vn) → rồi .env gốc (local)
 (() => {
-  try {
-    const envPath = path.join(__dirname, ".env");
-    if (!fs.existsSync(envPath)) return;
-    for (const line of fs.readFileSync(envPath, "utf8").split(/\r?\n/)) {
-      const t = line.trim();
-      if (!t || t.startsWith("#")) continue;
-      const i = t.indexOf("=");
-      if (i < 1) continue;
-      const key = t.slice(0, i).trim();
-      let val = t.slice(i + 1).trim();
-      if (
-        (val.startsWith('"') && val.endsWith('"')) ||
-        (val.startsWith("'") && val.endsWith("'"))
-      ) {
-        val = val.slice(1, -1);
+  const candidates = [
+    path.join(__dirname, "server", ".env"),
+    path.join(__dirname, ".env"),
+  ];
+  for (const envPath of candidates) {
+    try {
+      if (!fs.existsSync(envPath)) continue;
+      for (const line of fs.readFileSync(envPath, "utf8").split(/\r?\n/)) {
+        const t = line.trim();
+        if (!t || t.startsWith("#")) continue;
+        const i = t.indexOf("=");
+        if (i < 1) continue;
+        const key = t.slice(0, i).trim();
+        let val = t.slice(i + 1).trim();
+        if (
+          (val.startsWith('"') && val.endsWith('"')) ||
+          (val.startsWith("'") && val.endsWith("'"))
+        ) {
+          val = val.slice(1, -1);
+        }
+        if (!process.env[key]) process.env[key] = val;
       }
-      if (!process.env[key]) process.env[key] = val;
+    } catch {
+      /* ignore */
     }
-  } catch {
-    /* ignore */
   }
 })();
 

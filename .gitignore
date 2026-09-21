@@ -6,6 +6,7 @@ test-results/
 .env
 .env.local
 .env.*.local
+server/.env
 credentials.json
 *.pem
 *.p12
