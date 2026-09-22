@@ -61,7 +61,6 @@ const {
   sendTelegramPhoto,
 } = require("./lib/telegram-nobita");
 const { buildOverdueReportRows, formatReportHeaderDate } = require("./lib/report-overdue");
-const { renderReportPng } = require("./lib/report-image");
 const {
   getRequestUser,
   DEV_MODE: NOBITA_DEV_MODE,
@@ -751,7 +750,7 @@ function writeOrders(orders) {
 
 ensureData();
 
-app.use(express.json({ limit: "1mb" }));
+app.use(express.json({ limit: "8mb" }));
 
 // UI ở root (platform bắt index.html cạnh server/) — không static cả repo (tránh lộ .env)
 app.get(["/", "/index.html"], (_req, res) => {
@@ -2031,7 +2030,9 @@ app.post("/api/telegram/run-check", async (req, res) => {
   }
 });
 
-/** Báo cáo mua chậm → PNG → gửi group Telegram */
+/** Báo cáo mua chậm: PNG vẽ từ trình duyệt (base64) → gửi group Telegram.
+ * Server không dùng Playwright — container thường thiếu libnspr4.so / Chromium deps.
+ */
 app.post("/api/telegram/send-report", async (req, res) => {
   const cfg = readTelegramConfig(CONFIG_FILE);
   if (!telegramConfigured(cfg)) {
@@ -2041,27 +2042,55 @@ app.post("/api/telegram/send-report", async (req, res) => {
     });
   }
   try {
-    const live = await getOrdersForApi({
-      force: String(req.query.refresh || "") === "1",
-      userToken: extractBearerToken(req),
-    });
+    const body = req.body || {};
+    let png = null;
+    const rawB64 = String(body.imageBase64 || "").trim();
+    if (rawB64) {
+      const cleaned = rawB64.replace(/^data:image\/\w+;base64,/, "");
+      png = Buffer.from(cleaned, "base64");
+      if (!png.length || png.length > 9 * 1024 * 1024) {
+        return res.status(400).json({ ok: false, error: "Ảnh báo cáo không hợp lệ hoặc quá lớn" });
+      }
+    } else {
+      return res.status(400).json({
+        ok: false,
+        error: "Thiếu ảnh báo cáo (imageBase64). Cập nhật UI rồi thử lại.",
+      });
+    }
+
     const reasons = { ...readReportReasons() };
-    const bodyReasons = (req.body && req.body.reasons) || {};
+    const bodyReasons = body.reasons || {};
     if (bodyReasons && typeof bodyReasons === "object") {
       for (const [k, v] of Object.entries(bodyReasons)) {
         if (k) reasons[k] = String(v ?? "");
       }
     }
-    const headerDate = formatReportHeaderDate(new Date());
-    const rows = buildOverdueReportRows(live.orders || [], reasons);
-    const png = await renderReportPng(rows, { headerDate });
-    const caption = `📊 Báo cáo mua chậm ${headerDate} (${rows.length} website)`;
+
+    let headerDate = String(body.headerDate || "").trim() || formatReportHeaderDate(new Date());
+    let websites = Number(body.websites);
+    let orders = Number(body.orders);
+    if (!Number.isFinite(websites) || !Number.isFinite(orders)) {
+      try {
+        const live = await getOrdersForApi({
+          force: false,
+          userToken: extractBearerToken(req),
+        });
+        const rows = buildOverdueReportRows(live.orders || [], reasons);
+        websites = rows.length;
+        orders = rows.reduce((s, r) => s + r.orderCount, 0);
+      } catch {
+        websites = websites || 0;
+        orders = orders || 0;
+      }
+    }
+
+    const caption = `📊 Báo cáo mua chậm ${headerDate} (${websites} website)`;
     const messageId = await sendTelegramPhoto(cfg, png, caption);
     res.json({
       ok: true,
       messageId,
-      websites: rows.length,
-      orders: rows.reduce((s, r) => s + r.orderCount, 0),
+      websites,
+      orders,
       headerDate,
     });
   } catch (err) {
