@@ -244,9 +244,14 @@
 
                   <!-- Tab Báo cáo: đơn quá 3 ngày chưa mua (gom theo website) -->
                   <div class="tab-pane" id="pane-report" role="tabpanel" hidden>
-                    <p class="text-muted small mb-2">
-                      Tổng hợp đơn ở trạng thái chờ mua / cần xử lý, <b>quá 3 ngày</b> chưa có Order #, gom theo website.
-                    </p>
+                    <div class="d-flex flex-wrap align-items-center justify-content-between mb-2">
+                      <p class="text-muted small mb-0 mr-2">
+                        Tổng hợp đơn ở trạng thái chờ mua / cần xử lý, <b>quá 3 ngày</b> chưa có Order #, gom theo website.
+                      </p>
+                      <button type="button" class="btn btn-sm btn-primary" id="btnSendReportTelegram" title="Chụp bảng → gửi group Telegram">
+                        <i class="fa fa-paper-plane"></i> Gửi Telegram
+                      </button>
+                    </div>
                     <div class="table-responsive">
                       <table class="table table-bordered report-table mb-0" id="reportTable">
                         <thead>

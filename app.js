@@ -1227,6 +1227,31 @@ $(function () {
     }
   });
 
+  $("#btnSendReportTelegram").on("click", async function () {
+    const $btn = $(this).prop("disabled", true);
+    const reasons = {};
+    $("#reportBody tr").each(function () {
+      const website = $(this).data("website");
+      if (!website) return;
+      reasons[website] = $(this).find(".js-report-reason").val() || "";
+    });
+    try {
+      toast("Đang tạo ảnh báo cáo…");
+      const res = await apiFetch("/api/telegram/send-report?refresh=1", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reasons }),
+      });
+      const data = await res.json();
+      if (!data.ok) return toast(data.error || "Gửi Telegram thất bại", { error: true });
+      toast(`Đã gửi báo cáo ${data.headerDate} (${data.websites} website)`);
+    } catch (err) {
+      toast("Lỗi gửi Telegram: " + (err.message || String(err)), { error: true });
+    } finally {
+      $btn.prop("disabled", false);
+    }
+  });
+
   $("#btnSyncSheet").on("click", async function () {
     const $btn = $(this).prop("disabled", true);
     try {

@@ -66,3 +66,4 @@ Tuỳ chọn khác (thêm tay): `TELEGRAM_*`, `GOOGLE_*`, `BRIGHTDATA_*`, `PROXY
 - `GET /api/telegram/status`
 - `POST /api/telegram/test`
 - `POST /api/telegram/run-check?refresh=1`
+- `POST /api/telegram/send-report` — tab Báo cáo → ảnh PNG gửi group

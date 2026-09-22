@@ -58,7 +58,10 @@ const {
   runTelegramNotifyCheck,
   startTelegramNobitaBot,
   sendTelegramMessage,
+  sendTelegramPhoto,
 } = require("./lib/telegram-nobita");
+const { buildOverdueReportRows, formatReportHeaderDate } = require("./lib/report-overdue");
+const { renderReportPng } = require("./lib/report-image");
 const {
   getRequestUser,
   DEV_MODE: NOBITA_DEV_MODE,
@@ -2023,6 +2026,44 @@ app.post("/api/telegram/run-check", async (req, res) => {
       force: String(req.query.refresh || "") === "1",
     });
     res.json({ ok: true, ...result });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message || String(err) });
+  }
+});
+
+/** Báo cáo mua chậm → PNG → gửi group Telegram */
+app.post("/api/telegram/send-report", async (req, res) => {
+  const cfg = readTelegramConfig(CONFIG_FILE);
+  if (!telegramConfigured(cfg)) {
+    return res.status(400).json({
+      ok: false,
+      error: "Chưa cấu hình Telegram (TELEGRAM_* hoặc config.telegram)",
+    });
+  }
+  try {
+    const live = await getOrdersForApi({
+      force: String(req.query.refresh || "") === "1",
+      userToken: extractBearerToken(req),
+    });
+    const reasons = { ...readReportReasons() };
+    const bodyReasons = (req.body && req.body.reasons) || {};
+    if (bodyReasons && typeof bodyReasons === "object") {
+      for (const [k, v] of Object.entries(bodyReasons)) {
+        if (k) reasons[k] = String(v ?? "");
+      }
+    }
+    const headerDate = formatReportHeaderDate(new Date());
+    const rows = buildOverdueReportRows(live.orders || [], reasons);
+    const png = await renderReportPng(rows, { headerDate });
+    const caption = `📊 Báo cáo mua chậm ${headerDate} (${rows.length} website)`;
+    const messageId = await sendTelegramPhoto(cfg, png, caption);
+    res.json({
+      ok: true,
+      messageId,
+      websites: rows.length,
+      orders: rows.reduce((s, r) => s + r.orderCount, 0),
+      headerDate,
+    });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message || String(err) });
   }
