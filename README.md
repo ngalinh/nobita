@@ -27,8 +27,10 @@ Chỉ các key trong `server/.env.example` là bắt buộc:
 | `BASSO_AUTH_URL` | SSO session (đã có mặc định) |
 | `NOBITA_DEV_MODE` | `0` trên production |
 | `BASSO_ADMIN_BASE_URL` | Tuỳ chọn — URL Basso có API gợi ý PTTT; `-` = tắt |
+| `TELEGRAM_ENABLED` / `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` | Alert sale ends + mua gấp |
+| `BASSO_EMAIL` / `BASSO_PASS` | Service login cho poll Telegram (không cookie); `-` = tắt |
 
-**Không cần** `BASSO_EMAIL` / `BASSO_PASS` trên wizard.
+**UI user** dùng token phiên `ai.basso.vn`. **Bot Telegram** poll nền cần `BASSO_EMAIL`/`BASSO_PASS` (cùng tài khoản Partner) để lấy đơn live.
 
 - **Ai là user (Vinh…):** cookie SSO `ai.basso.vn` → `/api/me`
 - **Token gọi Partner API:** lấy từ phiên đăng nhập platform (`localStorage ai_chat_user.token`), gửi kèm `Authorization: Bearer …`
