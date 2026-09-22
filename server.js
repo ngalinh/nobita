@@ -59,6 +59,7 @@ const {
   startTelegramNobitaBot,
   sendTelegramMessage,
   sendTelegramPhoto,
+  sendTelegramDocument,
 } = require("./lib/telegram-nobita");
 const { buildOverdueReportRows, formatReportHeaderDate } = require("./lib/report-overdue");
 const {
@@ -2085,7 +2086,13 @@ app.post("/api/telegram/send-report", async (req, res) => {
     }
 
     const caption = `📊 Báo cáo mua chậm ${headerDate} (${websites} website)`;
-    const messageId = await sendTelegramPhoto(cfg, png, caption);
+    // sendDocument giữ PNG gốc (sendPhoto bị Telegram nén → chữ mờ)
+    const messageId = await sendTelegramDocument(
+      cfg,
+      png,
+      `bao-cao-mua-cham-${headerDate.replace(/\//g, "-")}.png`,
+      caption
+    );
     res.json({
       ok: true,
       messageId,

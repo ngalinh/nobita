@@ -833,52 +833,59 @@ function wrapCanvasText(ctx, text, maxWidth) {
 }
 
 function buildReportPngBase64(rows, headerDate) {
-  const scale = 2;
+  // scale cao + layout lớn → ảnh to, chữ nét trên Telegram
+  const scale = 3;
+  const fontBody = "16px Arial, Helvetica, sans-serif";
+  const fontBold = "bold 16px Arial, Helvetica, sans-serif";
+  const fontDate = "bold 22px Arial, Helvetica, sans-serif";
+  const fontCaption = "15px Arial, Helvetica, sans-serif";
   const cols = [
-    { key: "stt", title: "STT", w: 48, align: "center" },
-    { key: "website", title: "Website", w: 120, align: "left" },
-    { key: "orderCount", title: "Số đơn mua chậm", w: 110, align: "center" },
-    { key: "amount", title: "Số tiền", w: 100, align: "left" },
-    { key: "dateLabel", title: "Ngày tạo đơn", w: 130, align: "center" },
-    { key: "staff", title: "Người xử lý", w: 110, align: "center" },
-    { key: "reason", title: "Lý do", w: 360, align: "left" },
+    { key: "stt", title: "STT", w: 64, align: "center" },
+    { key: "website", title: "Website", w: 160, align: "left" },
+    { key: "orderCount", title: "Số đơn mua chậm", w: 140, align: "center" },
+    { key: "amount", title: "Số tiền", w: 130, align: "left" },
+    { key: "dateLabel", title: "Ngày tạo đơn", w: 170, align: "center" },
+    { key: "staff", title: "Người xử lý", w: 140, align: "center" },
+    { key: "reason", title: "Lý do", w: 480, align: "left" },
   ];
   const tableW = cols.reduce((s, c) => s + c.w, 0);
-  const pad = 16;
-  const captionH = 28;
-  const dateRowH = 36;
-  const headRowH = 40;
-  const lineH = 16;
-  const cellPadY = 8;
-  const cellPadX = 8;
+  const pad = 24;
+  const captionH = 36;
+  const dateRowH = 48;
+  const headRowH = 48;
+  const lineH = 22;
+  const cellPadY = 12;
+  const cellPadX = 12;
 
   const canvasProbe = document.createElement("canvas");
   const probe = canvasProbe.getContext("2d");
-  probe.font = "13px Arial, Helvetica, sans-serif";
+  probe.font = fontBody;
 
   const rowHeights = (rows || []).map((row) => {
     const reasonLines = wrapCanvasText(probe, row.reason || "", cols[6].w - cellPadX * 2);
-    return Math.max(36, reasonLines.length * lineH + cellPadY * 2);
+    return Math.max(48, reasonLines.length * lineH + cellPadY * 2);
   });
-  const bodyH = rowHeights.reduce((s, h) => s + h, 0) || 48;
+  const bodyH = rowHeights.reduce((s, h) => s + h, 0) || 56;
   const totalH = pad + captionH + dateRowH + headRowH + bodyH + pad;
   const totalW = pad * 2 + tableW;
 
   const canvas = document.createElement("canvas");
-  canvas.width = totalW * scale;
-  canvas.height = totalH * scale;
+  canvas.width = Math.round(totalW * scale);
+  canvas.height = Math.round(totalH * scale);
   const ctx = canvas.getContext("2d");
   ctx.scale(scale, scale);
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, totalW, totalH);
 
-  ctx.fillStyle = "#444444";
-  ctx.font = "13px Arial, Helvetica, sans-serif";
+  ctx.fillStyle = "#333333";
+  ctx.font = fontCaption;
   ctx.textBaseline = "top";
   ctx.fillText(
     "Tổng hợp đơn ở trạng thái chờ mua / cần xử lý, quá 3 ngày chưa có Order #, gom theo website.",
     pad,
-    pad
+    pad + 4
   );
 
   const tableX = pad;
@@ -886,37 +893,35 @@ function buildReportPngBase64(rows, headerDate) {
 
   function drawCell(x, y, w, h, text, opts = {}) {
     ctx.strokeStyle = "#222222";
-    ctx.lineWidth = 1;
+    ctx.lineWidth = 1.25;
     ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
     if (opts.bg) {
       ctx.fillStyle = opts.bg;
       ctx.fillRect(x + 1, y + 1, w - 2, h - 2);
     }
     ctx.fillStyle = "#111111";
-    ctx.font = opts.bold ? "bold 13px Arial, Helvetica, sans-serif" : "13px Arial, Helvetica, sans-serif";
+    ctx.font = opts.dateHead ? fontDate : opts.bold ? fontBold : fontBody;
     const lines = opts.multiline
       ? wrapCanvasText(ctx, text, w - cellPadX * 2)
       : [String(text ?? "")];
-    const textBlockH = lines.length * lineH;
+    const textBlockH = lines.length * (opts.dateHead ? 26 : lineH);
     let ty = y + (opts.multiline ? cellPadY : (h - textBlockH) / 2);
     for (const line of lines) {
       let tx = x + cellPadX;
       if (opts.align === "center") {
         tx = x + (w - ctx.measureText(line).width) / 2;
       }
-      ctx.fillText(line, tx, ty);
-      ty += lineH;
+      ctx.fillText(line, Math.round(tx), Math.round(ty));
+      ty += opts.dateHead ? 26 : lineH;
     }
   }
 
-  // Date header
   drawCell(tableX, tableY, tableW, dateRowH, headerDate, {
     bg: "#ffe600",
-    bold: true,
+    dateHead: true,
     align: "center",
   });
 
-  // Column headers
   let x = tableX;
   const headY = tableY + dateRowH;
   for (const col of cols) {
@@ -930,7 +935,7 @@ function buildReportPngBase64(rows, headerDate) {
 
   let y = headY + headRowH;
   if (!(rows || []).length) {
-    drawCell(tableX, y, tableW, 48, "Không có website nào quá 3 ngày chưa mua.", {
+    drawCell(tableX, y, tableW, 56, "Không có website nào quá 3 ngày chưa mua.", {
       align: "center",
     });
   } else {
