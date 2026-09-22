@@ -28,9 +28,17 @@ Chỉ các key trong `server/.env.example` là bắt buộc:
 | `NOBITA_DEV_MODE` | `0` trên production |
 | `BASSO_ADMIN_BASE_URL` | Tuỳ chọn — URL Basso có API gợi ý PTTT; `-` = tắt |
 | `TELEGRAM_ENABLED` / `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` | Alert sale ends + mua gấp |
+| `TELEGRAM_SALE_ENDS_HOUR` | Giờ VN gửi digest (mặc định `9`) |
 | `BASSO_EMAIL` / `BASSO_PASS` | Service login cho poll Telegram (không cookie); `-` = tắt |
 
 **UI user** dùng token phiên `ai.basso.vn`. **Bot Telegram** poll nền cần `BASSO_EMAIL`/`BASSO_PASS` (cùng tài khoản Partner) để lấy đơn live.
+
+Mỗi sáng từ `TELEGRAM_SALE_ENDS_HOUR` (9h VN): 1 tin tổng hợp website hết sale hôm đó, ví dụ:
+```
+⏰ SALE ENDS HÔM NAY
+Macys 14h 22/09/2026
+Tommy 14h 22/09/2026
+```
 
 - **Ai là user (Vinh…):** cookie SSO `ai.basso.vn` → `/api/me`
 - **Token gọi Partner API:** lấy từ phiên đăng nhập platform (`localStorage ai_chat_user.token`), gửi kèm `Authorization: Bearer …`

@@ -1980,11 +1980,13 @@ app.get("/api/telegram/status", (_req, res) => {
     enabled: cfg.enabled,
     chatId: cfg.chatId ? `${cfg.chatId.slice(0, 4)}…` : "",
     pollMinutes: cfg.pollMinutes,
+    saleEndsHour: cfg.saleEndsHour,
     notifySaleEndsToday: cfg.notifySaleEndsToday,
     notifyUrgentBuy: cfg.notifyUrgentBuy,
     lastRunAt: state.lastRunAt || null,
     lastError: state.lastError || null,
     notifiedUrgent: Object.keys(state.urgent || {}).length,
+    notifiedSaleEndsDigest: Object.keys(state.saleEndsDigest || {}).length,
     notifiedSaleEnds: Object.keys(state.saleEnds || {}).length,
   });
 });

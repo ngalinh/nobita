@@ -44,6 +44,7 @@
     "botToken": "",
     "chatId": "",
     "pollMinutes": 5,
+    "saleEndsHour": 9,
     "notifySaleEndsToday": true,
     "notifyUrgentBuy": true,
     "baseUrl": ""
