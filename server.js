@@ -1193,17 +1193,34 @@ app.put("/api/basso/settings", (req, res) => {
   res.json({ ok: true, settings: getSettings() });
 });
 
-/** Đọc Order # + Tracking từ Sheet → gắn theo Nobita ID (ưu tiên), rồi mới fallback link/size */
-app.post("/api/basso/sync-from-sheet", async (req, res) => {
-  const settings = getSettings();
-  const body = req.body || {};
-  const ptttId = String(body.payment_id || body.pttt_id || "");
-  const ptttList = ptttId
-    ? settings.pttt.filter((x) => x.id === ptttId || x.name === ptttId)
-    : settings.pttt.filter((x) => x.sheetUrl);
+const SHEET_SYNC_STATE_FILE = path.join(DATA_DIR, "sheet-sync-state.json");
+const SHEET_SYNC_HOURS = [10, 20];
 
+function vnClock(d = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(d);
+  const get = (type) => (parts.find((p) => p.type === type) || {}).value || "";
+  return {
+    dateKey: `${get("year")}-${get("month")}-${get("day")}`,
+    hour: Number(get("hour")),
+    minute: Number(get("minute")),
+  };
+}
+
+/**
+ * Đọc Order # + Tracking từ Sheet của các PTTT → gắn vào đơn / giỏ.
+ * Dùng chung cho nút Đồng bộ Sheet và lịch 10h / 20h VN.
+ */
+async function syncOrderTrackingFromSheets({ orders, buyList, ptttList, source, orderDate = "" }) {
   if (!ptttList.length) {
-    return res.status(400).json({ ok: false, error: "Chưa có PTTT nào map link Sheet" });
+    return { ok: false, error: "Chưa có PTTT nào map link Sheet" };
   }
 
   function normUrl(u) {
@@ -1244,9 +1261,6 @@ app.post("/api/basso/sync-from-sheet", async (req, res) => {
   }
 
   try {
-    const live = await ordersFromRequest(req);
-    const orders = live.orders || [];
-    const buyList = readBuyList();
     let updatedItems = 0;
     let matchedByKey = 0;
     let matchedByFallback = 0;
@@ -1320,7 +1334,7 @@ app.post("/api/basso/sync-from-sheet", async (req, res) => {
       const pulled = await pullReverseFromSheet({
         sheetUrl: pttt.sheetUrl,
         columns: pttt.columns,
-        orderDate: body.date || body.created_time || "",
+        orderDate: orderDate || "",
       });
       allRecords.push(...pulled.records);
 
@@ -1377,9 +1391,9 @@ app.post("/api/basso/sync-from-sheet", async (req, res) => {
     }
 
     writeItemOverlays(itemOverlays);
-    if (live.source === "mock") writeMockOrders(orders);
+    if (source === "mock") writeMockOrders(orders);
     writeBuyList(buyList);
-    res.json({
+    return {
       ok: true,
       message:
         `Đã gắn ${updatedItems} SP` +
@@ -1395,14 +1409,106 @@ app.post("/api/basso/sync-from-sheet", async (req, res) => {
       ambiguous,
       records: allRecords.length,
       matches,
-    });
+    };
   } catch (err) {
-    res.status(400).json({
+    return {
       ok: false,
       error: explainGoogleError(err.message || String(err)),
+    };
+  }
+}
+
+/** Đọc Order # + Tracking từ Sheet → gắn theo Nobita ID (ưu tiên), rồi mới fallback link/size */
+app.post("/api/basso/sync-from-sheet", async (req, res) => {
+  const settings = getSettings();
+  const body = req.body || {};
+  const ptttId = String(body.payment_id || body.pttt_id || "");
+  const ptttList = ptttId
+    ? settings.pttt.filter((x) => x.id === ptttId || x.name === ptttId)
+    : settings.pttt.filter((x) => x.sheetUrl);
+  try {
+    const live = await ordersFromRequest(req);
+    const result = await syncOrderTrackingFromSheets({
+      orders: live.orders || [],
+      buyList: readBuyList(),
+      ptttList,
+      source: live.source,
+      orderDate: body.date || body.created_time || "",
     });
+    res.status(result.ok ? 200 : 400).json(result);
+  } catch (err) {
+    res.status(400).json({ ok: false, error: explainGoogleError(err.message || String(err)) });
   }
 });
+
+function readSheetSyncState() {
+  try {
+    const raw = JSON.parse(fs.readFileSync(SHEET_SYNC_STATE_FILE, "utf8"));
+    return raw && typeof raw.done === "object" ? raw : { done: {} };
+  } catch {
+    return { done: {} };
+  }
+}
+
+function writeSheetSyncState(state) {
+  fs.writeFileSync(SHEET_SYNC_STATE_FILE, JSON.stringify(state, null, 2), "utf8");
+}
+
+let sheetSyncRunning = false;
+
+/** 10h và 20h giờ VN: đồng bộ Sheet một lần mỗi khung. */
+async function runScheduledSheetSync() {
+  const clock = vnClock();
+  if (!SHEET_SYNC_HOURS.includes(clock.hour)) return;
+  const slot = `${clock.dateKey}:${String(clock.hour).padStart(2, "0")}`;
+  const state = readSheetSyncState();
+  if (state.done[slot] || sheetSyncRunning) return;
+
+  const settings = getSettings();
+  const ptttList = (settings.pttt || []).filter((x) => x.sheetUrl);
+  if (!ptttList.length) {
+    console.warn("[sheet-sync]", slot, "bỏ qua — chưa có PTTT gắn link Sheet");
+    return;
+  }
+
+  sheetSyncRunning = true;
+  try {
+    const live = await getOrdersForApi({ force: true });
+    const result = await syncOrderTrackingFromSheets({
+      orders: live.orders || [],
+      buyList: readBuyList(),
+      ptttList,
+      source: live.source,
+    });
+    state.done[slot] = {
+      at: new Date().toISOString(),
+      ok: !!result.ok,
+      updatedItems: result.updatedItems || 0,
+      error: result.ok ? "" : result.error || "",
+    };
+    const cutoff = Date.now() - 21 * 24 * 60 * 60 * 1000;
+    for (const key of Object.keys(state.done)) {
+      const at = state.done[key] && state.done[key].at;
+      if (at && Date.parse(at) < cutoff) delete state.done[key];
+    }
+    writeSheetSyncState(state);
+    if (result.ok) console.log(`[sheet-sync] ${slot} VN — ${result.message}`);
+    else console.warn(`[sheet-sync] ${slot} VN — ${result.error}`);
+  } catch (err) {
+    console.warn("[sheet-sync]", slot, err.message || err);
+  } finally {
+    sheetSyncRunning = false;
+  }
+}
+
+function startSheetSyncSchedule() {
+  const tick = () => {
+    runScheduledSheetSync().catch((err) => console.warn("[sheet-sync]", err.message || err));
+  };
+  console.log("[sheet-sync] ON — 10h và 20h giờ VN (GMT+7)");
+  setTimeout(tick, 20000);
+  setInterval(tick, 60 * 1000);
+}
 
 app.get("/api/basso/credentials", (_req, res) => {
   try {
@@ -2130,4 +2236,5 @@ app.listen(PORT, () => {
     configFile: CONFIG_FILE,
     dataDir: DATA_DIR,
   });
+  startSheetSyncSchedule();
 });

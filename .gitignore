@@ -20,6 +20,7 @@ data/order-overlays.json
 data/item-overlays.json
 data/website-pttt.json
 data/telegram-notify-state.json
+data/sheet-sync-state.json
 data/report-reasons.json
 data/don-mua.xlsx
 data/stock.json

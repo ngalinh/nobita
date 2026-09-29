@@ -40,6 +40,8 @@ Macys 14h 22/09/2026
 Tommy 14h 22/09/2026
 ```
 
+Đồng bộ Sheet (Order # / Tracking) tự chạy **10h** và **20h** giờ VN, một lần mỗi khung. Cần `BASSO_EMAIL`/`BASSO_PASS` để lấy đơn live khi không có người đăng nhập.
+
 - **Ai là user (Vinh…):** cookie SSO `ai.basso.vn` → `/api/me`
 - **Token gọi Partner API:** lấy từ phiên đăng nhập platform (`localStorage ai_chat_user.token`), gửi kèm `Authorization: Bearer …`
 
