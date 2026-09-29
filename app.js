@@ -1430,7 +1430,12 @@ async function loadAll(opts = {}) {
     apiFetch("/api/basso/report-reasons").then((r) => r.json()).catch(() => ({ reasons: {} })),
   ]);
   state.orders = ordersRes.orders || [];
-  state.buyList = buyRes.items || [];
+  if (opts.clearBag) {
+    await apiFetch("/api/basso/buy-list/clear", { method: "POST" }).catch(() => {});
+    state.buyList = [];
+  } else {
+    state.buyList = buyRes.items || [];
+  }
   state.settings = settingsRes.settings || { pttt: [], warehouses: [] };
   state.reportReasons = (reasonsRes && reasonsRes.reasons) || {};
   state.source = ordersRes.source || "mock";
@@ -2023,7 +2028,7 @@ $(function () {
     toast("Xuất Excel (mock)");
   });
 
-  loadAll().catch((err) => {
+  loadAll({ clearBag: true }).catch((err) => {
     $("#emptyState").prop("hidden", false).text("Lỗi: " + err.message);
   });
 });

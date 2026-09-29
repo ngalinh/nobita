@@ -1737,7 +1737,7 @@ function ordersForCart(req) {
   return ordersFromRequest(req);
 }
 
-/** Giỏ Đang mua (result_tab) — không đổi status đơn gốc. File data/buy-list.json, F5 vẫn còn. */
+/** Giỏ Đang mua — chỉ trong phiên trang. F5 gọi clear và giỏ về rỗng. */
 app.get("/api/basso/buy-list", (_req, res) => {
   res.json({ ok: true, items: readBuyList() });
 });
@@ -1794,6 +1794,11 @@ app.post("/api/basso/buy-list/add-item", async (req, res) => {
   buyList.push(toBuyItem(order, item));
   writeBuyList(buyList);
   res.json({ ok: true, items: buyList, message: "Đã thêm sản phẩm" });
+});
+
+app.post("/api/basso/buy-list/clear", (_req, res) => {
+  writeBuyList([]);
+  res.json({ ok: true, items: [] });
 });
 
 app.patch("/api/basso/buy-list/:buyId", (req, res) => {
