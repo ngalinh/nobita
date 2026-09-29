@@ -292,6 +292,9 @@ function applyItemOverlays(orders) {
       if (ov.itemKey != null) item.itemKey = ov.itemKey;
       if (ov.syncedAt) item.syncedAt = ov.syncedAt;
       if (ov.adminOrderChecked) item.adminOrderChecked = true;
+      if (ov.adminOrderNumber) item.adminOrderNumber = ov.adminOrderNumber;
+      if (ov.adminTracking != null) item.adminTracking = ov.adminTracking;
+      if (ov.adminTrackingChecked) item.adminTrackingChecked = true;
     }
   }
   return orders;
@@ -1959,7 +1962,13 @@ app.post("/api/basso/buy-list/create-admin-order", async (req, res) => {
       const orderKey = bi.orderCode || bi.orderId;
       if (!orderKey || !bi.itemId) continue;
       const k = itemOverlayKey(orderKey, bi.itemId);
-      overlays[k] = { ...(overlays[k] || {}), adminOrderChecked: true, adminOrderCheckedAt: checkedAt };
+      overlays[k] = {
+        ...(overlays[k] || {}),
+        adminOrderChecked: true,
+        adminOrderCheckedAt: checkedAt,
+        adminOrderNumber: String(body.order_number || "").trim(),
+        adminWebOrderId: result.web_order_id || result.id || "",
+      };
     }
     writeItemOverlays(overlays);
     writeBuyList([]);
@@ -1977,6 +1986,33 @@ app.post("/api/basso/buy-list/create-admin-order", async (req, res) => {
       error: err.message || String(err),
     });
   }
+});
+
+app.post("/api/basso/items/admin-tracking", async (req, res) => {
+  const orderId = String((req.body && req.body.orderId) || "").trim();
+  const itemId = String((req.body && req.body.itemId) || "").trim();
+  const tracking = String((req.body && req.body.tracking) || "").trim();
+  if (!orderId || !itemId) {
+    return res.status(400).json({ ok: false, error: "Thiếu đơn hoặc sản phẩm" });
+  }
+  const overlays = readItemOverlays();
+  const k = itemOverlayKey(orderId, itemId);
+  const prev = overlays[k] || {};
+  if (!prev.adminOrderChecked) {
+    return res.status(400).json({ ok: false, error: "Chưa tạo đơn Admin cho sản phẩm này" });
+  }
+  overlays[k] = {
+    ...prev,
+    adminTracking: tracking,
+    adminTrackingChecked: !!tracking,
+    adminTrackingAt: new Date().toISOString(),
+  };
+  writeItemOverlays(overlays);
+  res.json({
+    ok: true,
+    adminTracking: tracking,
+    adminTrackingChecked: !!tracking,
+  });
 });
 
 /**

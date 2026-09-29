@@ -874,10 +874,18 @@ function renderScanned() {
           <div>${escapeHtml(item.orderNo || "")}</div>
           <input type="checkbox" class="mt-1" disabled ${item.adminOrderChecked ? "checked" : ""} title="Đã tạo đơn Admin" />
         </td>
-        <td class="text-center" style="word-break:break-all">${escapeHtml(item.tracking || "")}</td>
+        <td class="text-center" style="word-break:break-all">
+          <div>${escapeHtml(item.tracking || "")}</div>
+          <input type="checkbox" class="mt-1" disabled ${item.adminTrackingChecked ? "checked" : ""} title="Đã cập nhật tracking" />
+        </td>
         <td><a href="javascript:" class="text-info font-weight-bold js-scan-add-bag">Add bag</a></td>
-        <td class="text-center">
-          <input type="checkbox" disabled title="Tracking — làm sau" />
+        <td>
+          <div class="input-group input-group-sm">
+            <input type="text" class="form-control form-control-sm js-admin-tracking" value="${escapeHtml(item.adminTracking || "")}" placeholder="Tracking" title="${item.adminOrderChecked ? escapeHtml("Tracking cho order " + (item.adminOrderNumber || "")) : "Tạo đơn Admin trước"}" ${item.adminOrderChecked ? "" : "disabled"} />
+            <div class="input-group-append">
+              <button type="button" class="btn btn-light border js-save-admin-tracking" title="Lưu tracking" ${item.adminOrderChecked ? "" : "disabled"}><i class="fa fa-save"></i></button>
+            </div>
+          </div>
         </td>
       </tr>`);
   });
@@ -1665,6 +1673,35 @@ $(function () {
     await addScannedToBag([
       { orderId: String($tr.attr("data-order-id") || ""), itemId: String($tr.attr("data-item-id") || "") },
     ]);
+  });
+
+  $("#pane-scanned").on("click", ".js-save-admin-tracking", async function () {
+    const $tr = $(this).closest("tr");
+    const orderId = String($tr.attr("data-order-id") || "");
+    const itemId = String($tr.attr("data-item-id") || "");
+    const tracking = String($tr.find(".js-admin-tracking").val() || "").trim();
+    const $btn = $(this).prop("disabled", true);
+    try {
+      const res = await apiFetch("/api/basso/items/admin-tracking", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId, itemId, tracking }),
+      });
+      const data = await res.json();
+      if (!data.ok) return toast(data.error || "Lưu tracking thất bại", { error: true });
+      const order = (state.orders || []).find((o) => String(o.id) === orderId);
+      const item = order && (order.items || []).find((it) => String(it.id) === itemId);
+      if (item) {
+        item.adminTracking = data.adminTracking || "";
+        item.adminTrackingChecked = !!data.adminTrackingChecked;
+      }
+      renderScanned();
+      toast(tracking ? "Đã cập nhật tracking" : "Đã xóa tracking", { success: true });
+    } catch (err) {
+      toast("Lỗi lưu tracking: " + (err.message || String(err)), { error: true });
+    } finally {
+      $btn.prop("disabled", false);
+    }
   });
 
   $("#btnScanAddBag").on("click", async function () {
