@@ -156,18 +156,18 @@ function bassoNoti(message, status) {
   el.id = "nobita-hulla";
   el.className = "hullabaloo alert alert-dismissible " + (ok ? "alert-success" : "alert-danger");
   el.setAttribute("role", "alert");
-  el.style.cssText = "position:fixed;top:20px;right:20px;width:250px;z-index:9999;margin:0;padding:15px;border:1px solid;border-radius:4px;display:none;";
+  el.style.cssText = "position:fixed;top:20px;right:20px;width:250px;z-index:9999;margin:0;padding:15px 35px 15px 15px;border:1px solid;border-radius:4px;display:none;font-size:14px;";
   if (ok) {
-    el.style.color = "#3c763d";
-    el.style.backgroundColor = "#dff0d8";
-    el.style.borderColor = "#d6e9c6";
+    el.style.color = "#fff";
+    el.style.backgroundColor = "#27c24c";
+    el.style.borderColor = "#27c24c";
   } else {
-    el.style.color = "#a94442";
-    el.style.backgroundColor = "#f2dede";
-    el.style.borderColor = "#ebccd1";
+    el.style.color = "#fff";
+    el.style.backgroundColor = "#f05050";
+    el.style.borderColor = "#f05050";
   }
   el.innerHTML =
-    '<button type="button" class="close" aria-label="Close" style="position:absolute;top:8px;right:10px;background:none;border:0;font-size:21px;line-height:1;opacity:.4"><span aria-hidden="true">&times;</span></button>' +
+    '<button type="button" class="close" aria-label="Close" style="position:absolute;top:8px;right:10px;background:none;border:0;font-size:21px;line-height:1;color:#fff;opacity:.8;text-shadow:none"><span aria-hidden="true">&times;</span></button>' +
     '<i class="fa fa-' +
     (ok ? "check" : "times-circle") +
     '"></i> ' +
