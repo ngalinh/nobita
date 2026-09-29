@@ -855,7 +855,7 @@ function renderScanned() {
     const order = row.order;
     const img = item.image || "/assets/img/dummy.png";
     $body.append(`
-      <tr data-order-id="${escapeHtml(order.id)}" data-item-id="${escapeHtml(item.id)}">
+      <tr data-order-id="${escapeHtml(order.id)}" data-item-id="${escapeHtml(item.id)}" data-sheet-tracking="${escapeHtml(item.tracking || "")}">
         <td><input type="checkbox" class="js-scan-check" /></td>
         <td>${i + 1}</td>
         <td>${escapeHtml(formatScanTime(item.syncedAt, order))}</td>
@@ -881,9 +881,9 @@ function renderScanned() {
         <td><a href="javascript:" class="text-info font-weight-bold js-scan-add-bag">Add bag</a></td>
         <td>
           <div class="input-group input-group-sm">
-            <input type="text" class="form-control form-control-sm js-admin-tracking" value="${escapeHtml(item.adminTracking || "")}" placeholder="Tracking" title="${item.adminOrderChecked ? escapeHtml("Tracking cho order " + (item.adminOrderNumber || "")) : "Tạo đơn Admin trước"}" ${item.adminOrderChecked ? "" : "disabled"} />
+            <input type="text" class="form-control form-control-sm js-admin-tracking" value="${escapeHtml(item.adminTracking || "")}" placeholder="${escapeHtml(item.tracking || "Tracking")}" title="${item.adminOrderChecked ? escapeHtml("Tracking cho order " + (item.adminOrderNumber || "")) : "Tạo đơn Admin trước"}" readonly ${item.adminOrderChecked ? "" : "disabled"} />
             <div class="input-group-append">
-              <button type="button" class="btn btn-light border js-save-admin-tracking" title="Lưu tracking" ${item.adminOrderChecked ? "" : "disabled"}><i class="fa fa-save"></i></button>
+              <button type="button" class="btn btn-light border js-save-admin-tracking" title="Cập nhật tracking từ cột Tracking number" ${item.adminOrderChecked && item.tracking ? "" : "disabled"}>Cập nhật</button>
             </div>
           </div>
         </td>
@@ -1679,7 +1679,9 @@ $(function () {
     const $tr = $(this).closest("tr");
     const orderId = String($tr.attr("data-order-id") || "");
     const itemId = String($tr.attr("data-item-id") || "");
-    const tracking = String($tr.find(".js-admin-tracking").val() || "").trim();
+    const tracking = String($tr.attr("data-sheet-tracking") || "").trim();
+    if (!tracking) return toast("Chưa có Tracking number", { error: true });
+    $tr.find(".js-admin-tracking").val(tracking);
     const $btn = $(this).prop("disabled", true);
     try {
       const res = await apiFetch("/api/basso/items/admin-tracking", {
