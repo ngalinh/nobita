@@ -148,25 +148,62 @@ function toggle_row(ele) {
   nextItems.slideToggle();
 }
 
+function bassoNoti(message, status) {
+  const ok = status !== "danger";
+  const prev = document.getElementById("nobita-hulla");
+  if (prev) prev.remove();
+  const el = document.createElement("div");
+  el.id = "nobita-hulla";
+  el.className = "hullabaloo alert alert-dismissible " + (ok ? "alert-success" : "alert-danger");
+  el.setAttribute("role", "alert");
+  el.style.cssText = "position:fixed;top:20px;right:20px;width:250px;z-index:9999;margin:0;padding:15px;border:1px solid;border-radius:4px;display:none;";
+  if (ok) {
+    el.style.color = "#3c763d";
+    el.style.backgroundColor = "#dff0d8";
+    el.style.borderColor = "#d6e9c6";
+  } else {
+    el.style.color = "#a94442";
+    el.style.backgroundColor = "#f2dede";
+    el.style.borderColor = "#ebccd1";
+  }
+  el.innerHTML =
+    '<button type="button" class="close" aria-label="Close" style="position:absolute;top:8px;right:10px;background:none;border:0;font-size:21px;line-height:1;opacity:.4"><span aria-hidden="true">&times;</span></button>' +
+    '<i class="fa fa-' +
+    (ok ? "check" : "times-circle") +
+    '"></i> ' +
+    escapeHtml(message);
+  document.body.appendChild(el);
+  if (window.jQuery) window.jQuery(el).fadeIn();
+  else el.style.display = "block";
+  el.querySelector(".close").onclick = () => {
+    if (window.jQuery) window.jQuery(el).fadeOut(() => el.remove());
+    else el.remove();
+  };
+  clearTimeout(bassoNoti._t);
+  bassoNoti._t = setTimeout(() => {
+    if (!el.isConnected) return;
+    if (window.jQuery) window.jQuery(el).fadeOut(() => el.remove());
+    else el.remove();
+  }, 5000);
+}
+
 function toast(msg, opts) {
+  if (opts && (opts.success || opts.basso)) {
+    return bassoNoti(msg, opts && opts.error ? "danger" : "success");
+  }
   let el = document.getElementById("nobita-toast");
   if (!el) {
     el = document.createElement("div");
     el.id = "nobita-toast";
     el.style.cssText =
-      "position:fixed;right:16px;bottom:16px;max-width:min(480px,92vw);color:#fff;padding:12px 16px;border-radius:4px;z-index:9999;opacity:0;transition:opacity .2s;line-height:1.4;font-size:14px;white-space:pre-wrap;box-shadow:0 4px 14px rgba(0,0,0,.18)";
+      "position:fixed;right:16px;bottom:16px;max-width:min(480px,92vw);background:#3a3f51;color:#fff;padding:12px 14px;border-radius:4px;z-index:9999;opacity:0;transition:opacity .2s;line-height:1.4;font-size:13px;white-space:pre-wrap";
     document.body.appendChild(el);
   }
   el.textContent = msg;
-  const success = !!(opts && opts.success);
-  const error = !!(opts && opts.error);
-  el.style.background = error ? "#b42318" : success ? "#2eb85c" : "#3a3f51";
-  el.style.fontWeight = success ? "600" : "400";
-  el.style.top = success ? "16px" : "auto";
-  el.style.bottom = success ? "auto" : "16px";
+  el.style.background = opts && opts.error ? "#b42318" : "#3a3f51";
   el.style.opacity = "1";
   clearTimeout(toast._t);
-  toast._t = setTimeout(() => (el.style.opacity = "0"), error ? 8000 : 2800);
+  toast._t = setTimeout(() => (el.style.opacity = "0"), opts && opts.error ? 8000 : 2800);
 }
 
 function localBuyItem(order, item) {
@@ -214,10 +251,8 @@ async function addOrderItemsToBag(order, onlyItemId) {
     added += 1;
   }
   refreshBagView();
-  if (!added) return toast("Sản phẩm đã có trong danh sách", { error: true });
-  toast(onlyItemId ? "Đã thêm vào giỏ hàng" : `Đã thêm ${added} sản phẩm vào giỏ hàng`, {
-    success: true,
-  });
+  if (!added) return toast("Sản phẩm đã có trong danh sách", { error: true, basso: true });
+  toast(onlyItemId ? "Đã thêm sản phẩm" : `Đã thêm ${added} sản phẩm`, { success: true });
 
   try {
     const res = await apiFetch(
