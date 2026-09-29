@@ -878,25 +878,40 @@ function renderScanned() {
 }
 
 async function addScannedToBag(pairs) {
-  if (!pairs.length) return toast("Chọn sản phẩm rồi bấm Add bag", { error: true });
+  if (!pairs.length) return toast("Chọn sản phẩm rồi bấm Add bag", { error: true, basso: true });
   let added = 0;
-  let lastItems = state.buyList;
-  const errors = [];
+  const toSave = [];
   for (const pair of pairs) {
-    const res = await apiFetch("/api/basso/buy-list/add-item", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ orderId: pair.orderId, itemId: pair.itemId }),
-    });
-    const data = await res.json();
-    if (data.items) lastItems = data.items;
-    if (data.ok) added += 1;
-    else if (data.error) errors.push(data.error);
+    const order = (state.orders || []).find((o) => String(o.id) === String(pair.orderId));
+    const item = order && (order.items || []).find((it) => String(it.id) === String(pair.itemId));
+    if (!order || !item) continue;
+    if (state.buyList.some((x) => String(x.itemId) === String(item.id))) continue;
+    state.buyList.push(localBuyItem(order, item));
+    toSave.push(pair);
+    added += 1;
   }
-  state.buyList = lastItems || [];
-  if (!added) return toast(errors[0] || "Không thêm được sản phẩm", { error: true });
-  toast(added === 1 ? "Đã thêm vào Đang mua" : `Đã thêm ${added} SP vào Đang mua`);
-  switchTab("dang_mua");
+  refreshBagView();
+  if (!added) return toast("Sản phẩm đã có trong danh sách", { error: true, basso: true });
+  toast(added === 1 ? "Đã thêm sản phẩm" : `Đã thêm ${added} sản phẩm`, { success: true });
+
+  let lastItems = null;
+  for (const pair of toSave) {
+    try {
+      const res = await apiFetch("/api/basso/buy-list/add-item", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId: pair.orderId, itemId: pair.itemId }),
+      });
+      const data = await res.json();
+      if (Array.isArray(data.items)) lastItems = data.items;
+    } catch {
+      /* giỏ local vẫn hiện; F5 sẽ xóa */
+    }
+  }
+  if (lastItems) {
+    state.buyList = lastItems;
+    refreshBagView();
+  }
 }
 
 function formatDayMonth(d) {
