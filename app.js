@@ -1520,7 +1520,7 @@ $(function () {
     e.preventDefault();
     const $tr = $(this).closest("tr");
     await addScannedToBag([
-      { orderId: String($tr.data("order-id") || ""), itemId: String($tr.data("item-id") || "") },
+      { orderId: String($tr.attr("data-order-id") || ""), itemId: String($tr.attr("data-item-id") || "") },
     ]);
   });
 
@@ -1529,8 +1529,8 @@ $(function () {
     $("#scanBody .js-scan-check:checked").each(function () {
       const $tr = $(this).closest("tr");
       pairs.push({
-        orderId: String($tr.data("order-id") || ""),
-        itemId: String($tr.data("item-id") || ""),
+        orderId: String($tr.attr("data-order-id") || ""),
+        itemId: String($tr.attr("data-item-id") || ""),
       });
     });
     await addScannedToBag(pairs);
