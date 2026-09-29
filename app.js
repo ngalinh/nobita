@@ -825,14 +825,14 @@ function formatScanTime(iso, order) {
   return created ? formatReportHeaderDate(created) : "—";
 }
 
-/** SP đã có cả Order # và Tracking — cũ trên, mới quét xuống dưới cùng. */
+/** SP đã có Order # hoặc Tracking — cũ trên, mới quét xuống dưới cùng. */
 function scannedProductRows() {
   const rows = [];
   for (const order of state.orders || []) {
     for (const item of order.items || []) {
       const orderNo = String(item.orderNo || "").trim();
       const tracking = String(item.tracking || "").trim();
-      if (!orderNo || !tracking) continue;
+      if (!orderNo && !tracking) continue;
       const synced = item.syncedAt ? Date.parse(item.syncedAt) : 0;
       const created = parseOrderCreatedDate(order);
       rows.push({

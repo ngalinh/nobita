@@ -175,7 +175,7 @@
                   </li>
                   <li class="nav-item">
                     <a class="nav-link" href="#tab_scanned" data-toggle="tab" data-status="da_quet"
-                      title="SP đã có Order # và Tracking sau Đồng bộ Sheet"
+                      title="SP đã có Order # hoặc Tracking sau Đồng bộ Sheet"
                       >Đã quét (<span data-count="da_quet">0</span>)</a
                     >
                   </li>
@@ -280,11 +280,11 @@
                     <p class="text-center text-muted py-4 mb-0" id="reportEmpty" hidden>Không có website nào quá 3 ngày chưa mua.</p>
                   </div>
 
-                  <!-- Tab Đã quét: SP đã có Order # + Tracking -->
+                  <!-- Tab Đã quét: SP đã có Order # hoặc Tracking -->
                   <div class="tab-pane" id="pane-scanned" role="tabpanel" hidden>
                     <div class="d-flex flex-wrap align-items-center justify-content-between mb-2">
                       <p class="text-muted small mb-0 mr-2">
-                        Sản phẩm đã có <b>Order #</b> và <b>Tracking</b> sau khi Đồng bộ Sheet. Mới quét xếp dưới cùng.
+                        Sản phẩm đã có <b>Order #</b> hoặc <b>Tracking</b> sau khi Đồng bộ Sheet. Có một trong hai là hiện. Mới quét xếp dưới cùng.
                       </p>
                       <button type="button" class="btn btn-sm btn-info" id="btnScanAddBag" title="Gom các dòng đã chọn vào Đang mua">
                         Add bag
@@ -311,7 +311,7 @@
                         <tbody id="scanBody" class="text-center"></tbody>
                       </table>
                     </div>
-                    <p class="text-center text-muted py-4 mb-0" id="scanEmpty" hidden>Chưa có sản phẩm đủ Order # và Tracking. Bấm Đồng bộ Sheet ở tab đơn.</p>
+                    <p class="text-center text-muted py-4 mb-0" id="scanEmpty" hidden>Chưa có sản phẩm có Order # hoặc Tracking. Bấm Đồng bộ Sheet ở tab đơn.</p>
                   </div>
 
                   <!-- Tab Gửi đơn = gửi Excel / Google Sheet -->
