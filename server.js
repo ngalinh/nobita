@@ -291,6 +291,7 @@ function applyItemOverlays(orders) {
       if (ov.tracking != null) item.tracking = ov.tracking;
       if (ov.itemKey != null) item.itemKey = ov.itemKey;
       if (ov.syncedAt) item.syncedAt = ov.syncedAt;
+      if (ov.adminOrderChecked) item.adminOrderChecked = true;
     }
   }
   return orders;
@@ -1952,6 +1953,15 @@ app.post("/api/basso/buy-list/create-admin-order", async (req, res) => {
     },
       { userToken }
     );
+    const overlays = readItemOverlays();
+    const checkedAt = new Date().toISOString();
+    for (const bi of buyList) {
+      const orderKey = bi.orderCode || bi.orderId;
+      if (!orderKey || !bi.itemId) continue;
+      const k = itemOverlayKey(orderKey, bi.itemId);
+      overlays[k] = { ...(overlays[k] || {}), adminOrderChecked: true, adminOrderCheckedAt: checkedAt };
+    }
+    writeItemOverlays(overlays);
     writeBuyList([]);
     res.json({
       ok: true,
