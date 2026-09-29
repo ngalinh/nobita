@@ -715,7 +715,7 @@ function formatScanTime(iso, order) {
   return created ? formatReportHeaderDate(created) : "—";
 }
 
-/** SP đã có cả Order # và Tracking — mới quét (syncedAt) lên trước. */
+/** SP đã có cả Order # và Tracking — cũ trên, mới quét xuống dưới cùng. */
 function scannedProductRows() {
   const rows = [];
   for (const order of state.orders || []) {
@@ -732,7 +732,7 @@ function scannedProductRows() {
       });
     }
   }
-  rows.sort((a, b) => b.sort - a.sort || String(b.order.id).localeCompare(String(a.order.id)));
+  rows.sort((a, b) => a.sort - b.sort || String(a.order.id).localeCompare(String(b.order.id)));
   return rows;
 }
 
