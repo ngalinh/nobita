@@ -846,6 +846,14 @@ function scannedProductRows() {
   return rows;
 }
 
+function scanTick(checked, title) {
+  const tip = escapeHtml(title || "");
+  if (checked) {
+    return `<i class="fa fa-check-square" style="color:#27c24c;font-size:16px" title="${tip}"></i>`;
+  }
+  return `<i class="far fa-square text-muted" style="font-size:16px" title="${tip}"></i>`;
+}
+
 function renderScanned() {
   const rows = scannedProductRows();
   const $body = $("#scanBody").empty();
@@ -872,18 +880,18 @@ function renderScanned() {
         <td>$ ${money(item.price)}</td>
         <td class="text-center" style="word-break:break-all">
           <div>${escapeHtml(item.orderNo || "")}</div>
-          <input type="checkbox" class="mt-1" disabled ${item.adminOrderChecked ? "checked" : ""} title="Đã tạo đơn Admin" />
+          <div class="mt-1">${scanTick(item.adminOrderChecked, item.adminOrderChecked ? "Đã tạo đơn Admin từ Đang mua" : "Tích xanh khi tạo đơn Admin từ Đang mua thành công")}</div>
         </td>
         <td class="text-center" style="word-break:break-all">
           <div>${escapeHtml(item.tracking || "")}</div>
-          <input type="checkbox" class="mt-1" disabled ${item.adminTrackingChecked ? "checked" : ""} title="Đã cập nhật tracking" />
+          <div class="mt-1">${scanTick(item.adminTrackingChecked, item.adminTrackingChecked ? "Đã cập nhật tracking cho sản phẩm" : "Tích khi bấm Cập nhật")}</div>
         </td>
         <td><a href="javascript:" class="text-info font-weight-bold js-scan-add-bag">Add bag</a></td>
         <td>
           <div class="input-group input-group-sm">
-            <input type="text" class="form-control form-control-sm js-admin-tracking" value="${escapeHtml(item.adminTracking || "")}" placeholder="${escapeHtml(item.tracking || "Tracking")}" title="${item.adminOrderChecked ? escapeHtml("Tracking cho order " + (item.adminOrderNumber || "")) : "Tạo đơn Admin trước"}" readonly ${item.adminOrderChecked ? "" : "disabled"} />
+            <input type="text" class="form-control form-control-sm js-admin-tracking" value="${escapeHtml(item.adminOrderChecked ? item.adminTracking || "" : "")}" placeholder="Tracking" title="${item.adminOrderChecked ? escapeHtml("Tracking sản phẩm, lấy từ Tracking number") : "Tạo đơn Admin từ Đang mua trước"}" readonly ${item.adminOrderChecked ? "" : "disabled"} />
             <div class="input-group-append">
-              <button type="button" class="btn btn-light border js-save-admin-tracking" title="Cập nhật tracking từ cột Tracking number" ${item.adminOrderChecked && item.tracking ? "" : "disabled"}>Cập nhật</button>
+              <button type="button" class="btn btn-light border js-save-admin-tracking" title="Lấy Tracking number cập nhật vào tracking sản phẩm" ${item.adminOrderChecked && String(item.tracking || "").trim() ? "" : "disabled"}>Cập nhật</button>
             </div>
           </div>
         </td>
