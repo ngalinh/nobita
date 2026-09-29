@@ -1186,7 +1186,14 @@ function renderSettings() {
     $pttt.append(`
       <tr data-idx="${i}" class="pttt-main">
         <td><input type="text" class="form-control form-control-sm js-pttt-name" value="${escapeHtml(row.name)}" placeholder="Tên PTTT" /></td>
-        <td><input type="text" class="form-control form-control-sm js-pttt-url" value="${escapeHtml(row.sheetUrl || "")}" placeholder="https://docs.google.com/spreadsheets/d/..." /></td>
+        <td>
+          <div class="input-group input-group-sm">
+            <input type="text" class="form-control form-control-sm js-pttt-url" value="${escapeHtml(row.sheetUrl || "")}" placeholder="https://docs.google.com/spreadsheets/d/..." />
+            <div class="input-group-append">
+              <a class="btn btn-outline-primary js-open-sheet" href="${escapeHtml(/^https?:\/\//i.test(String(row.sheetUrl || "").trim()) ? String(row.sheetUrl).trim() : "#")}" target="_blank" rel="noopener" title="Mở Sheet">Mở</a>
+            </div>
+          </div>
+        </td>
         <td class="text-center">
           <button type="button" class="btn btn-outline-info btn-xs btn-colmap ${open ? "is-open" : ""}" data-idx="${i}">Map cột</button>
         </td>
@@ -1829,6 +1836,20 @@ $(function () {
     state.settings.pttt = collectSettingsFromForm().pttt;
     state.openColMapIdx = state.openColMapIdx === idx ? null : idx;
     renderSettings();
+  });
+
+  $("#settingsPtttBody").on("input", ".js-pttt-url", function () {
+    const url = String($(this).val() || "").trim();
+    const $a = $(this).closest(".input-group").find(".js-open-sheet");
+    $a.attr("href", /^https?:\/\//i.test(url) ? url : "#");
+  });
+
+  $("#settingsPtttBody").on("click", ".js-open-sheet", function (e) {
+    const href = String($(this).attr("href") || "");
+    if (!/^https?:\/\//i.test(href)) {
+      e.preventDefault();
+      toast("Chưa có link Sheet hợp lệ", { error: true });
+    }
   });
 
   $("#settingsPtttBody").on("click", ".js-pttt-del", function () {
