@@ -30,6 +30,8 @@ const state = {
     { key: "itemKey", label: "Nobita ID (mặc định dòng dưới Date)" },
     { key: "orderNo", label: "Order #" },
     { key: "tracking", label: "Tracking" },
+    { key: "adminCheck", label: "Checkbox tạo Admin" },
+    { key: "trackingCheck", label: "Checkbox Tracking" },
   ],
   defaultColumns: {
     date: "A",
@@ -44,6 +46,8 @@ const state = {
     itemKey: "A",
     orderNo: "J",
     tracking: "K",
+    adminCheck: "",
+    trackingCheck: "",
   },
   openColMapIdx: null,
   section: "orders", // orders | settings
@@ -1349,7 +1353,7 @@ function renderSettings() {
       <tr class="pttt-colmap" data-idx="${i}" ${open ? "" : "hidden"}>
         <td colspan="4">
           <div class="colmap-panel">
-            <div class="small text-muted mb-2">Nhập chữ cột Excel (A, B, C…). Để trống field nào không dùng. Mặc định A→I theo layout cũ.</div>
+            <div class="small text-muted mb-2">Nhập chữ cột Excel (A, B, C…). Để trống field nào không dùng. Mặc định A→I theo layout cũ. Checkbox tạo Admin và Checkbox Tracking phải map đúng cột checkbox trên Excel — khi Nobita tích thì ô Excel tích theo.</div>
             <div class="colmap-grid">${mapCells}</div>
           </div>
         </td>
@@ -1706,7 +1710,15 @@ $(function () {
         item.adminTrackingChecked = !!data.adminTrackingChecked;
       }
       renderScanned();
-      toast(tracking ? "Đã cập nhật tracking" : "Đã xóa tracking", { success: true });
+      const sheetErr = data.sheetCheck && data.sheetCheck.error;
+      toast(
+        sheetErr
+          ? `Đã cập nhật tracking. Excel: ${sheetErr}`
+          : tracking
+            ? "Đã cập nhật tracking"
+            : "Đã xóa tracking",
+        sheetErr ? { error: true } : { success: true }
+      );
     } catch (err) {
       toast("Lỗi lưu tracking: " + (err.message || String(err)), { error: true });
     } finally {
@@ -1962,7 +1974,13 @@ $(function () {
         return toast(data.error || "Tạo đơn Admin thất bại", { error: true });
       }
       state.buyList = [];
-      toast(data.message || "Tạo đơn hàng thành công");
+      const sheetErr = data.sheetCheck && data.sheetCheck.error;
+      toast(
+        sheetErr
+          ? `${data.message || "Tạo đơn hàng thành công"}. Excel: ${sheetErr}`
+          : data.message || "Tạo đơn hàng thành công",
+        sheetErr ? { error: true } : { success: true }
+      );
       $("#dm_note").val("");
       $("#dm_order_number").val("");
       $("#dm_ship").val(0);

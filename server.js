@@ -36,7 +36,7 @@ const fs = require("fs");
 const { chromium } = require("playwright");
 const { scrapeWithBrightData, resolveDataset } = require("./lib/brightdata");
 const { listDatasets } = require("./lib/brightdata-datasets");
-const { sendOrderToSheets, sendBuyListToSheets, pullReverseFromSheet, SPREADSHEET_ID, defaultSheetUrl, explainGoogleError, loadCredentials, CREDENTIALS_FILE, defaultColumnMap, normalizeColumnMap, COLUMN_FIELDS, ALL_COLUMN_FIELDS, parseSheetUrl } = require("./lib/sheets");
+const { sendOrderToSheets, sendBuyListToSheets, pullReverseFromSheet, markSheetChecks, SPREADSHEET_ID, defaultSheetUrl, explainGoogleError, loadCredentials, CREDENTIALS_FILE, defaultColumnMap, normalizeColumnMap, COLUMN_FIELDS, ALL_COLUMN_FIELDS, parseSheetUrl } = require("./lib/sheets");
 const {
   readPartnerConfig,
   partnerConfigured,
@@ -1855,6 +1855,49 @@ app.post("/api/basso/buy-list/create-order", async (req, res) => {
   }
 });
 
+function sheetCheckItem(row, flags) {
+  return {
+    itemKey: row.itemKey || "",
+    maDh: row.orderCode || row.orderId || row.maDh || "",
+    url: row.url || "",
+    size: row.size || "",
+    color: row.color || "",
+    admin: !!flags.admin,
+    tracking: !!flags.tracking,
+  };
+}
+
+/** Tích checkbox Excel theo PTTT đã map. Không làm fail thao tác Nobita. */
+async function tickExcelChecks(groups) {
+  const settings = getSettings();
+  const errors = [];
+  let updated = 0;
+  let unmatched = 0;
+  for (const [ptttId, items] of groups) {
+    const pttt = (settings.pttt || []).find((p) => String(p.id) === String(ptttId));
+    if (!pttt || !pttt.sheetUrl) {
+      errors.push("Chưa có link Excel của PTTT");
+      unmatched += items.length;
+      continue;
+    }
+    try {
+      const result = await markSheetChecks({
+        sheetUrl: pttt.sheetUrl,
+        columns: pttt.columns,
+        items,
+      });
+      updated += result.updated || 0;
+      unmatched += result.unmatched || 0;
+      if (result.error) errors.push(result.error);
+    } catch (err) {
+      errors.push(err.message || String(err));
+      unmatched += items.length;
+    }
+  }
+  const error = [...new Set(errors.filter(Boolean))].join("; ");
+  return { ok: !error && unmatched === 0, updated, unmatched, error };
+}
+
 /** Tạo đơn Admin trên Basso (POST /partner/createWebOrder) — tab Đang mua */
 app.post("/api/basso/buy-list/create-admin-order", async (req, res) => {
   const buyList = readBuyList();
@@ -1971,6 +2014,13 @@ app.post("/api/basso/buy-list/create-admin-order", async (req, res) => {
       };
     }
     writeItemOverlays(overlays);
+    const checkGroups = new Map();
+    for (const bi of buyList) {
+      const ptttId = String(bi.ptttId || "").trim();
+      if (!checkGroups.has(ptttId)) checkGroups.set(ptttId, []);
+      checkGroups.get(ptttId).push(sheetCheckItem(bi, { admin: true }));
+    }
+    const sheetCheck = await tickExcelChecks(checkGroups);
     writeBuyList([]);
     res.json({
       ok: true,
@@ -1978,6 +2028,7 @@ app.post("/api/basso/buy-list/create-admin-order", async (req, res) => {
       web_order_id: result.web_order_id || result.id || null,
       redirect_url: result.redirect_url || null,
       cleared: buyList.length,
+      sheetCheck,
       data: result,
     });
   } catch (err) {
@@ -2008,10 +2059,37 @@ app.post("/api/basso/items/admin-tracking", async (req, res) => {
     adminTrackingAt: new Date().toISOString(),
   };
   writeItemOverlays(overlays);
+
+  let sheetCheck = { ok: false, updated: 0, unmatched: 0, error: "" };
+  if (tracking) {
+    const live = await ordersFromRequest(req);
+    const order = findOrderInList(live.orders, orderId);
+    const item = order && (order.items || []).find((it) => String(it.id) === itemId);
+    if (order && item) {
+      const groups = new Map();
+      groups.set(String(order.ptttId || ""), [
+        sheetCheckItem(
+          {
+            itemKey: item.itemKey || prev.itemKey || "",
+            orderCode: order.id,
+            url: item.url || "",
+            size: item.size || "",
+            color: item.color || "",
+          },
+          { tracking: true }
+        ),
+      ]);
+      sheetCheck = await tickExcelChecks(groups);
+    } else {
+      sheetCheck.error = "Không thấy sản phẩm để tích checkbox Excel";
+    }
+  }
+
   res.json({
     ok: true,
     adminTracking: tracking,
     adminTrackingChecked: !!tracking,
+    sheetCheck,
   });
 });
 
