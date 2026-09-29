@@ -874,11 +874,11 @@ function renderScanned() {
           <div>${escapeHtml(item.orderNo || "")}</div>
           <input type="checkbox" class="mt-1" disabled ${item.adminOrderChecked ? "checked" : ""} title="Đã tạo đơn Admin" />
         </td>
-        <td class="text-center" style="word-break:break-all">
-          <div>${escapeHtml(item.tracking || "")}</div>
-          <input type="checkbox" class="mt-1" disabled title="Tracking — làm sau" />
-        </td>
+        <td class="text-center" style="word-break:break-all">${escapeHtml(item.tracking || "")}</td>
         <td><a href="javascript:" class="text-info font-weight-bold js-scan-add-bag">Add bag</a></td>
+        <td class="text-center">
+          <input type="checkbox" disabled title="Tracking — làm sau" />
+        </td>
       </tr>`);
   });
 }
