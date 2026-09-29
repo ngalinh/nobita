@@ -870,8 +870,8 @@ function renderScanned() {
         <td class="text-left"><b>Size</b>: ${escapeHtml(item.size || "—")}<br /><b>Màu</b>: ${escapeHtml(item.color || "—")}</td>
         <td>${item.qty || 1}</td>
         <td>$ ${money(item.price)}</td>
-        <td class="text-left" style="word-break:break-all">${escapeHtml(item.orderNo)}</td>
-        <td class="text-left" style="word-break:break-all">${escapeHtml(item.tracking)}</td>
+        <td class="text-center" style="word-break:break-all">${escapeHtml(item.orderNo)}</td>
+        <td class="text-center" style="word-break:break-all">${escapeHtml(item.tracking)}</td>
         <td><a href="javascript:" class="text-info font-weight-bold js-scan-add-bag">Add bag</a></td>
       </tr>`);
   });
