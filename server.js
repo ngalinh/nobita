@@ -290,6 +290,7 @@ function applyItemOverlays(orders) {
       if (ov.orderNo != null) item.orderNo = ov.orderNo;
       if (ov.tracking != null) item.tracking = ov.tracking;
       if (ov.itemKey != null) item.itemKey = ov.itemKey;
+      if (ov.syncedAt) item.syncedAt = ov.syncedAt;
     }
   }
   return orders;
@@ -1281,6 +1282,7 @@ app.post("/api/basso/sync-from-sheet", async (req, res) => {
           orderNo: item.orderNo || "",
           tracking: item.tracking || "",
           itemKey: item.itemKey || "",
+          syncedAt: new Date().toISOString(),
         };
       }
 

@@ -242,6 +242,7 @@ function updateMeta() {
     gui_don: state.buyList.length,
     dang_mua: state.buyList.length,
     bao_cao: overdue.reduce((s, r) => s + r.orderCount, 0),
+    da_quet: scannedProductRows().length,
   };
   state.orders.forEach((o) => {
     if (o.status === "can_mua_order") c.can_mua_order++;
@@ -275,6 +276,11 @@ function updateMeta() {
   } else if (state.status === "dang_mua" || state.status === "gui_don") {
     pending = state.buyList.reduce(
       (s, it) => s + Number(it.price || 0) * Number(it.qty || 1),
+      0
+    );
+  } else if (state.status === "da_quet") {
+    pending = scannedProductRows().reduce(
+      (s, row) => s + Number(row.item.price || 0) * Number(row.item.qty || 1),
       0
     );
   } else if (state.status === "bao_cao") {
@@ -405,10 +411,8 @@ function buyListRowHtml(item, i, { admin } = {}) {
   const line = Number(item.price || 0) * Number(item.qty || 1);
   const img = item.image || "/assets/img/dummy.png";
   const cur = escapeHtml(item.currencySymbol || "$");
-  const extraCols = admin
-    ? ""
-    : `<td>${escapeHtml(item.orderNo || "")}</td>
-        <td>${escapeHtml(item.tracking || "")}</td>`;
+  const extraCols = `<td class="text-left" style="word-break:break-all">${escapeHtml(item.orderNo || "")}</td>
+        <td class="text-left" style="word-break:break-all">${escapeHtml(item.tracking || "")}</td>`;
   return `
       <tr data-buy-id="${escapeHtml(item.buyId)}">
         <td>${i + 1}</td>
@@ -640,11 +644,14 @@ function showPane() {
   const buying = state.status === "dang_mua";
   const sending = state.status === "gui_don";
   const report = state.status === "bao_cao";
-  $("#pane-orders").prop("hidden", buying || sending || report).toggleClass("active", !buying && !sending && !report);
+  const scanned = state.status === "da_quet";
+  const listOrders = !buying && !sending && !report && !scanned;
+  $("#pane-orders").prop("hidden", !listOrders).toggleClass("active", listOrders);
   $("#pane-send").prop("hidden", !sending).toggleClass("active", sending);
   $("#pane-buying").prop("hidden", !buying).toggleClass("active", buying);
   $("#pane-report").prop("hidden", !report).toggleClass("active", report);
-  if (buying || sending || report) {
+  $("#pane-scanned").prop("hidden", !scanned).toggleClass("active", scanned);
+  if (buying || sending || report || scanned) {
     $("#ordersPager").prop("hidden", true);
   }
   if (buying || sending) {
@@ -653,6 +660,8 @@ function showPane() {
     renderBuyList();
   } else if (report) {
     renderReport();
+  } else if (scanned) {
+    renderScanned();
   } else {
     renderOrders();
   }
@@ -693,6 +702,91 @@ function parseOrderCreatedDate(order) {
   }
 
   return tryParse(order.saleEnds);
+}
+
+function formatScanTime(iso, order) {
+  if (iso) {
+    const d = new Date(iso);
+    if (!Number.isNaN(d.getTime())) {
+      return d.toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", hour12: false });
+    }
+  }
+  const created = parseOrderCreatedDate(order);
+  return created ? formatReportHeaderDate(created) : "—";
+}
+
+/** SP đã có cả Order # và Tracking — mới quét (syncedAt) lên trước. */
+function scannedProductRows() {
+  const rows = [];
+  for (const order of state.orders || []) {
+    for (const item of order.items || []) {
+      const orderNo = String(item.orderNo || "").trim();
+      const tracking = String(item.tracking || "").trim();
+      if (!orderNo || !tracking) continue;
+      const synced = item.syncedAt ? Date.parse(item.syncedAt) : 0;
+      const created = parseOrderCreatedDate(order);
+      rows.push({
+        order,
+        item,
+        sort: Number.isFinite(synced) && synced > 0 ? synced : created ? created.getTime() : 0,
+      });
+    }
+  }
+  rows.sort((a, b) => b.sort - a.sort || String(b.order.id).localeCompare(String(a.order.id)));
+  return rows;
+}
+
+function renderScanned() {
+  const rows = scannedProductRows();
+  const $body = $("#scanBody").empty();
+  $("#scanEmpty").prop("hidden", rows.length > 0);
+  rows.forEach((row, i) => {
+    const item = row.item;
+    const order = row.order;
+    const img = item.image || "/assets/img/dummy.png";
+    $body.append(`
+      <tr data-order-id="${escapeHtml(order.id)}" data-item-id="${escapeHtml(item.id)}">
+        <td><input type="checkbox" class="js-scan-check" /></td>
+        <td>${i + 1}</td>
+        <td>${escapeHtml(formatScanTime(item.syncedAt, order))}</td>
+        <td>${escapeHtml(order.id)}</td>
+        <td>${escapeHtml(order.website || "—")}</td>
+        <td class="text-left">
+          <div class="d-flex align-items-center">
+            <img src="${escapeHtml(img)}" alt="" style="max-height:48px;max-width:48px;margin-right:8px" loading="lazy" />
+            <a href="${escapeHtml(item.url || "#")}" target="_blank">${escapeHtml(item.name || "—")}</a>
+          </div>
+        </td>
+        <td class="text-left"><b>Size</b>: ${escapeHtml(item.size || "—")}<br /><b>Màu</b>: ${escapeHtml(item.color || "—")}</td>
+        <td>${item.qty || 1}</td>
+        <td>$ ${money(item.price)}</td>
+        <td class="text-left" style="word-break:break-all">${escapeHtml(item.orderNo)}</td>
+        <td class="text-left" style="word-break:break-all">${escapeHtml(item.tracking)}</td>
+        <td><a href="javascript:" class="text-info font-weight-bold js-scan-add-bag">Add bag</a></td>
+      </tr>`);
+  });
+}
+
+async function addScannedToBag(pairs) {
+  if (!pairs.length) return toast("Chọn sản phẩm rồi bấm Add bag", { error: true });
+  let added = 0;
+  let lastItems = state.buyList;
+  const errors = [];
+  for (const pair of pairs) {
+    const res = await apiFetch("/api/basso/buy-list/add-item", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orderId: pair.orderId, itemId: pair.itemId }),
+    });
+    const data = await res.json();
+    if (data.items) lastItems = data.items;
+    if (data.ok) added += 1;
+    else if (data.error) errors.push(data.error);
+  }
+  state.buyList = lastItems || [];
+  if (!added) return toast(errors[0] || "Không thêm được sản phẩm", { error: true });
+  toast(added === 1 ? "Đã thêm vào Đang mua" : `Đã thêm ${added} SP vào Đang mua`);
+  switchTab("dang_mua");
 }
 
 function formatDayMonth(d) {
@@ -1420,6 +1514,26 @@ $(function () {
     } finally {
       $btn.prop("disabled", false);
     }
+  });
+
+  $("#pane-scanned").on("click", ".js-scan-add-bag", async function (e) {
+    e.preventDefault();
+    const $tr = $(this).closest("tr");
+    await addScannedToBag([
+      { orderId: String($tr.data("order-id") || ""), itemId: String($tr.data("item-id") || "") },
+    ]);
+  });
+
+  $("#btnScanAddBag").on("click", async function () {
+    const pairs = [];
+    $("#scanBody .js-scan-check:checked").each(function () {
+      const $tr = $(this).closest("tr");
+      pairs.push({
+        orderId: String($tr.data("order-id") || ""),
+        itemId: String($tr.data("item-id") || ""),
+      });
+    });
+    await addScannedToBag(pairs);
   });
 
   $("#btnSyncSheet").on("click", async function () {
