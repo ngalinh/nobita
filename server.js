@@ -1730,14 +1730,21 @@ app.patch("/api/basso/orders/:id/warehouse", async (req, res) => {
   });
 });
 
-/** Giỏ Đang mua (result_tab) — không đổi status đơn gốc */
+function ordersForCart(req) {
+  if (liveOrdersCache && Array.isArray(liveOrdersCache.orders) && liveOrdersCache.orders.length) {
+    return Promise.resolve(liveOrdersCache);
+  }
+  return ordersFromRequest(req);
+}
+
+/** Giỏ Đang mua (result_tab) — không đổi status đơn gốc. File data/buy-list.json, F5 vẫn còn. */
 app.get("/api/basso/buy-list", (_req, res) => {
   res.json({ ok: true, items: readBuyList() });
 });
 
 app.post("/api/basso/buy-list/add-all", async (req, res) => {
   const orderId = String((req.body && req.body.orderId) || "");
-  const live = await ordersFromRequest(req);
+  const live = await ordersForCart(req);
   const order = findOrderInList(live.orders, orderId);
   if (!order) return res.status(404).json({ ok: false, error: "Không tìm thấy đơn" });
   if (!order.items || !order.items.length) {
@@ -1772,7 +1779,7 @@ app.post("/api/basso/buy-list/add-all", async (req, res) => {
 app.post("/api/basso/buy-list/add-item", async (req, res) => {
   const orderId = String((req.body && req.body.orderId) || "");
   const itemId = String((req.body && req.body.itemId) || "");
-  const live = await ordersFromRequest(req);
+  const live = await ordersForCart(req);
   const order = findOrderInList(live.orders, orderId);
   if (!order) return res.status(404).json({ ok: false, error: "Không tìm thấy đơn" });
 

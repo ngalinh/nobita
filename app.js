@@ -154,14 +154,89 @@ function toast(msg, opts) {
     el = document.createElement("div");
     el.id = "nobita-toast";
     el.style.cssText =
-      "position:fixed;right:16px;bottom:16px;max-width:min(480px,92vw);background:#3a3f51;color:#fff;padding:12px 14px;border-radius:4px;z-index:9999;opacity:0;transition:opacity .2s;line-height:1.4;font-size:13px;white-space:pre-wrap";
+      "position:fixed;right:16px;bottom:16px;max-width:min(480px,92vw);color:#fff;padding:12px 16px;border-radius:4px;z-index:9999;opacity:0;transition:opacity .2s;line-height:1.4;font-size:14px;white-space:pre-wrap;box-shadow:0 4px 14px rgba(0,0,0,.18)";
     document.body.appendChild(el);
   }
   el.textContent = msg;
-  el.style.background = opts && opts.error ? "#b42318" : "#3a3f51";
+  const success = !!(opts && opts.success);
+  const error = !!(opts && opts.error);
+  el.style.background = error ? "#b42318" : success ? "#2eb85c" : "#3a3f51";
+  el.style.fontWeight = success ? "600" : "400";
+  el.style.top = success ? "16px" : "auto";
+  el.style.bottom = success ? "auto" : "16px";
   el.style.opacity = "1";
   clearTimeout(toast._t);
-  toast._t = setTimeout(() => (el.style.opacity = "0"), opts && opts.error ? 8000 : 2800);
+  toast._t = setTimeout(() => (el.style.opacity = "0"), error ? 8000 : 2800);
+}
+
+function localBuyItem(order, item) {
+  return {
+    buyId: `local-${item.id}`,
+    itemId: item.id,
+    orderId: order.id,
+    bassoOrderId: order.bassoId || order.id,
+    orderCode: order.id,
+    website: order.website || "",
+    brand: order.brand || "",
+    currencySymbol: order.currencySymbol || "$",
+    ptttId: order.ptttId || order.ptttSuggestId || "",
+    name: item.name,
+    url: item.url || "",
+    image: item.image || "",
+    size: item.size || "",
+    color: item.color || "",
+    qty: Number(item.qty || 1),
+    price: Number(item.price || 0),
+    note: item.note || "",
+    orderNo: item.orderNo || "",
+    tracking: item.tracking || "",
+    itemKey: item.itemKey || "",
+  };
+}
+
+function refreshBagView() {
+  updateMeta();
+  if (state.status === "dang_mua" || state.status === "gui_don") renderBuyList();
+}
+
+/** Thêm ngay từ đơn đang hiện, lưu server phía sau — không chuyển tab. */
+async function addOrderItemsToBag(order, onlyItemId) {
+  if (!order) return toast("Không tìm thấy đơn", { error: true });
+  const items = (order.items || []).filter(
+    (it) => !onlyItemId || String(it.id) === String(onlyItemId)
+  );
+  if (!items.length) return toast("Đơn không có sản phẩm", { error: true });
+
+  let added = 0;
+  for (const item of items) {
+    if (state.buyList.some((x) => String(x.itemId) === String(item.id))) continue;
+    state.buyList.push(localBuyItem(order, item));
+    added += 1;
+  }
+  refreshBagView();
+  if (!added) return toast("Sản phẩm đã có trong danh sách", { error: true });
+  toast(onlyItemId ? "Đã thêm vào giỏ hàng" : `Đã thêm ${added} sản phẩm vào giỏ hàng`, {
+    success: true,
+  });
+
+  try {
+    const res = await apiFetch(
+      onlyItemId ? "/api/basso/buy-list/add-item" : "/api/basso/buy-list/add-all",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(
+          onlyItemId ? { orderId: order.id, itemId: onlyItemId } : { orderId: order.id }
+        ),
+      }
+    );
+    const data = await res.json();
+    if (Array.isArray(data.items)) state.buyList = data.items;
+    refreshBagView();
+    if (!data.ok) toast(data.error || "Không lưu được giỏ hàng", { error: true });
+  } catch (err) {
+    toast("Lỗi lưu giỏ hàng: " + (err.message || String(err)), { error: true });
+  }
 }
 
 function picOptionsHtml(selected) {
@@ -1623,35 +1698,19 @@ $(function () {
     }
   });
 
-  $("#ordersBody").on("click", ".js-add-all", async function (e) {
+  $("#ordersBody").on("click", ".js-add-all", function (e) {
     e.preventDefault();
     const id = $(this).closest("tr").data("id");
-    const res = await apiFetch(`/api/basso/buy-list/add-all`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ orderId: id }),
-    });
-    const data = await res.json();
-    if (!data.ok) return toast(data.error || "Thêm thất bại");
-    state.buyList = data.items || [];
-    toast(data.message || "Đã thêm sản phẩm");
-    switchTab("dang_mua");
+    const order = state.orders.find((x) => String(x.id) === String(id));
+    addOrderItemsToBag(order);
   });
 
-  $("#ordersBody").on("click", ".js-add-item", async function (e) {
+  $("#ordersBody").on("click", ".js-add-item", function (e) {
     e.preventDefault();
     const orderId = $(this).closest("tr.tr-collapse").prev("tr").data("id");
     const itemId = $(this).data("item-id");
-    const res = await apiFetch(`/api/basso/buy-list/add-item`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ orderId, itemId }),
-    });
-    const data = await res.json();
-    if (!data.ok) return toast(data.error || "Thêm SP thất bại");
-    state.buyList = data.items || [];
-    toast(data.message || "Đã thêm sản phẩm");
-    switchTab("dang_mua");
+    const order = state.orders.find((x) => String(x.id) === String(orderId));
+    addOrderItemsToBag(order, itemId);
   });
 
   $("#ordersBody").on("click", ".js-cancel-order", function (e) {
