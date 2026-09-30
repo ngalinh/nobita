@@ -1218,11 +1218,19 @@ function vnClock(d = new Date()) {
   };
 }
 
+function sheetHitsForCodes(records, orderCodes) {
+  const want = new Set(
+    (orderCodes || []).map((c) => String(c || "").trim().toUpperCase()).filter(Boolean)
+  );
+  if (!want.size) return [];
+  return (records || []).filter((rec) => want.has(String(rec.maDh || "").trim().toUpperCase()));
+}
+
 /**
  * Đọc Order # + Tracking từ Sheet của các PTTT → gắn vào đơn / giỏ.
  * Dùng chung cho nút Đồng bộ Sheet và lịch 10h / 20h VN.
  */
-async function syncOrderTrackingFromSheets({ orders, buyList, ptttList, source, orderDate = "" }) {
+async function syncOrderTrackingFromSheets({ orders, buyList, ptttList, source, orderDate = "", orderCodes = [] }) {
   if (!ptttList.length) {
     return { ok: false, error: "Chưa có PTTT nào map link Sheet" };
   }
@@ -1413,6 +1421,7 @@ async function syncOrderTrackingFromSheets({ orders, buyList, ptttList, source, 
       ambiguous,
       records: allRecords.length,
       matches,
+      hits: sheetHitsForCodes(allRecords, orderCodes),
     };
   } catch (err) {
     return {
@@ -2349,6 +2358,25 @@ app.post("/api/telegram/send-report", async (req, res) => {
   }
 });
 
+/** Tag bot + mã đơn trên Telegram: đồng bộ Excel rồi trả Order number. */
+async function lookupOrderOnSheet(orderCodes) {
+  const codes = [...new Set((orderCodes || []).map((c) => String(c || "").trim().toUpperCase()).filter(Boolean))];
+  const settings = getSettings();
+  const ptttList = (settings.pttt || []).filter((x) => x.sheetUrl);
+  if (!ptttList.length) {
+    return { ok: false, error: "Chưa có PTTT gắn link Excel", hits: [] };
+  }
+  const live = await getOrdersForApi({ force: false });
+  const result = await syncOrderTrackingFromSheets({
+    orders: live.orders || [],
+    buyList: readBuyList(),
+    ptttList,
+    source: live.source,
+    orderCodes: codes,
+  });
+  return { ...result, hits: result.hits || [] };
+}
+
 app.listen(PORT, () => {
   console.log(`Nobita order mock: http://localhost:${PORT}`);
   console.log(`Google Sheet: ${SPREADSHEET_ID}`);
@@ -2369,6 +2397,7 @@ app.listen(PORT, () => {
   );
   global.__telegramNobita = startTelegramNobitaBot({
     getOrdersForApi,
+    lookupOrderOnSheet,
     configFile: CONFIG_FILE,
     dataDir: DATA_DIR,
   });
