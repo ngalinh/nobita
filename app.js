@@ -841,26 +841,21 @@ function orderStillBuyable(order) {
   return (order.items || []).some((it) => !it.adminOrderChecked);
 }
 
-/** SP đã có Order # hoặc Tracking — cũ trên, mới quét xuống dưới cùng.
- *  Rời tab khi tracking đã cập nhật API và checkbox Tracking tích cả Excel lẫn Nobita.
+/** Đã quét giữ món cả khi Basso đã gỡ khỏi Cần mua.
+ *  Chỉ rời tab sau khi Cập nhật tracking thành công và checkbox Tracking được tích.
  */
 function scannedProductRows() {
-  const rows = [];
-  for (const order of state.orders || []) {
-    for (const item of order.items || []) {
-      if (item.adminTrackingChecked && item.adminTrackingSheetChecked) continue;
-      const orderNo = String(item.orderNo || "").trim();
-      const tracking = String(item.tracking || "").trim();
-      if (!orderNo && !tracking) continue;
-      const synced = item.syncedAt ? Date.parse(item.syncedAt) : 0;
-      const created = parseOrderCreatedDate(order);
-      rows.push({
-        order,
-        item,
-        sort: Number.isFinite(synced) && synced > 0 ? synced : created ? created.getTime() : 0,
-      });
-    }
-  }
+  const rows = (state.scannedItems || [])
+    .filter((row) => !(row.adminTrackingChecked && row.adminTrackingSheetChecked))
+    .filter((row) => String(row.orderNo || "").trim() || String(row.tracking || "").trim())
+    .map((row) => {
+      const synced = row.syncedAt ? Date.parse(row.syncedAt) : 0;
+      return {
+        order: { id: row.orderId, website: row.website || "" },
+        item: { ...row, id: row.itemId },
+        sort: Number.isFinite(synced) && synced > 0 ? synced : 0,
+      };
+    });
   rows.sort((a, b) => a.sort - b.sort || String(a.order.id).localeCompare(String(b.order.id)));
   return rows;
 }
@@ -1500,6 +1495,7 @@ async function loadAll(opts = {}) {
     apiFetch("/api/basso/report-reasons").then((r) => r.json()).catch(() => ({ reasons: {} })),
   ]);
   state.orders = ordersRes.orders || [];
+  state.scannedItems = ordersRes.scannedItems || [];
   if (opts.clearBag) {
     await apiFetch("/api/basso/buy-list/clear", { method: "POST" }).catch(() => {});
     state.buyList = [];
@@ -1734,11 +1730,9 @@ $(function () {
       if (!data.ok) return toast(data.error || "Lưu tracking thất bại", { error: true });
       const order = (state.orders || []).find((o) => String(o.id) === orderId);
       const item = order && (order.items || []).find((it) => String(it.id) === itemId);
-      if (item) {
-        item.adminTracking = data.adminTracking || tracking;
-        item.adminTrackingChecked = !!data.adminTrackingChecked;
-        item.adminTrackingSheetChecked = !!data.adminTrackingSheetChecked;
-      }
+      state.scannedItems = (state.scannedItems || []).filter(
+        (row) => !(String(row.orderId) === orderId && String(row.itemId) === itemId)
+      );
       renderScanned();
       updateMeta();
       toast("Đã cập nhật tracking và tích checkbox Excel", { success: true });

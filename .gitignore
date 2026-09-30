@@ -18,6 +18,7 @@ data/orders.json
 data/buy-list.json
 data/order-overlays.json
 data/item-overlays.json
+data/scanned-items.json
 data/website-pttt.json
 data/telegram-notify-state.json
 data/telegram-update-offset.json

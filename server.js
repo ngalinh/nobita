@@ -78,6 +78,7 @@ const MOCK_ORDERS_FILE = path.join(DATA_DIR, "mock-orders.json");
 const BUY_LIST_FILE = path.join(DATA_DIR, "buy-list.json");
 const ORDER_OVERLAYS_FILE = path.join(DATA_DIR, "order-overlays.json");
 const ITEM_OVERLAYS_FILE = path.join(DATA_DIR, "item-overlays.json");
+const SCANNED_ITEMS_FILE = path.join(DATA_DIR, "scanned-items.json");
 const WEBSITE_PTTT_FILE = path.join(DATA_DIR, "website-pttt.json");
 
 function loadFallbackCreateMeta() {
@@ -300,6 +301,179 @@ function applyItemOverlays(orders) {
     }
   }
   return orders;
+}
+
+function readScannedItems() {
+  try {
+    const data = JSON.parse(fs.readFileSync(SCANNED_ITEMS_FILE, "utf8"));
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeScannedItems(items) {
+  fs.writeFileSync(SCANNED_ITEMS_FILE, JSON.stringify(items, null, 2), "utf8");
+}
+
+function scannedIsDone(row) {
+  return !!(row && row.adminTrackingChecked && row.adminTrackingSheetChecked);
+}
+
+function snapshotScannedItem(order, item) {
+  const orderNo = String((item && item.orderNo) || "").trim();
+  const tracking = String((item && item.tracking) || "").trim();
+  if (!item || !order || (!orderNo && !tracking)) return null;
+  return {
+    orderId: String(order.id || item.orderCode || item.orderId || ""),
+    itemId: String(item.id || item.itemId || ""),
+    website: order.website || item.website || "",
+    ptttId: order.ptttId || item.ptttId || "",
+    name: item.name || "",
+    url: item.url || "",
+    image: item.image || "",
+    size: item.size || "",
+    color: item.color || "",
+    qty: item.qty || 1,
+    price: item.price || 0,
+    orderNo,
+    tracking,
+    syncedAt: item.syncedAt || "",
+    itemKey: item.itemKey || "",
+    adminOrderChecked: !!item.adminOrderChecked,
+    adminOrderNumber: item.adminOrderNumber || "",
+    adminTracking: item.adminTracking || "",
+    adminTrackingChecked: !!item.adminTrackingChecked,
+    adminTrackingSheetChecked: !!item.adminTrackingSheetChecked,
+  };
+}
+
+function rememberScannedItems(orders) {
+  const list = readScannedItems();
+  let changed = false;
+  for (const order of orders || []) {
+    for (const item of order.items || []) {
+      const snap = snapshotScannedItem(order, item);
+      if (!snap || !snap.orderId || !snap.itemId) continue;
+      const idx = list.findIndex(
+        (row) => String(row.orderId) === snap.orderId && String(row.itemId) === snap.itemId
+      );
+      if (scannedIsDone(snap) || (idx >= 0 && scannedIsDone(list[idx]))) {
+        if (idx >= 0) {
+          list.splice(idx, 1);
+          changed = true;
+        }
+        continue;
+      }
+      const prev = idx >= 0 ? list[idx] : {};
+      const next = {
+        ...prev,
+        ...snap,
+        orderNo: snap.orderNo || prev.orderNo || "",
+        tracking: snap.tracking || prev.tracking || "",
+        adminOrderChecked: !!(snap.adminOrderChecked || prev.adminOrderChecked),
+        adminOrderNumber: snap.adminOrderNumber || prev.adminOrderNumber || "",
+        syncedAt: snap.syncedAt || prev.syncedAt || "",
+      };
+      if (idx >= 0) list[idx] = next;
+      else list.push(next);
+      changed = true;
+    }
+  }
+  if (changed) writeScannedItems(list);
+  return list;
+}
+
+function listOpenScannedItems() {
+  return readScannedItems().filter((row) => !scannedIsDone(row) && (row.orderNo || row.tracking));
+}
+
+function markScannedAdminCreated(bi, orderNumber) {
+  const orderId = String(bi.orderCode || bi.orderId || "");
+  const itemId = String(bi.itemId || "");
+  if (!orderId || !itemId) return;
+  const list = readScannedItems();
+  const idx = list.findIndex((row) => String(row.orderId) === orderId && String(row.itemId) === itemId);
+  if (idx < 0) {
+    if (!String(bi.orderNo || "").trim() && !String(bi.tracking || "").trim()) return;
+    list.push({
+      orderId,
+      itemId,
+      website: bi.website || "",
+      ptttId: bi.ptttId || "",
+      name: bi.name || "",
+      url: bi.url || "",
+      image: bi.image || "",
+      size: bi.size || "",
+      color: bi.color || "",
+      qty: bi.qty || 1,
+      price: bi.price || 0,
+      orderNo: bi.orderNo || "",
+      tracking: bi.tracking || "",
+      syncedAt: "",
+      itemKey: bi.itemKey || "",
+      adminOrderChecked: true,
+      adminOrderNumber: orderNumber || "",
+      adminTracking: "",
+      adminTrackingChecked: false,
+      adminTrackingSheetChecked: false,
+    });
+  } else {
+    list[idx].adminOrderChecked = true;
+    list[idx].adminOrderNumber = orderNumber || list[idx].adminOrderNumber || "";
+  }
+  writeScannedItems(list);
+}
+
+function dropScannedItem(orderId, itemId) {
+  const list = readScannedItems().filter(
+    (row) => !(String(row.orderId) === String(orderId) && String(row.itemId) === String(itemId))
+  );
+  writeScannedItems(list);
+}
+
+function sheetUrlClose(a, b) {
+  const norm = (u) =>
+    String(u || "")
+      .trim()
+      .toLowerCase()
+      .replace(/\/$/, "")
+      .replace(/^https?:\/\//, "");
+  const x = norm(a);
+  const y = norm(b);
+  if (!x || !y) return false;
+  return x === y || x.includes(y) || y.includes(x);
+}
+
+/** Tracking/Order # trên Excel vẫn cập nhật món Đã quét sau khi Basso đã gỡ khỏi Cần mua. */
+function syncScannedFromSheetRecords(records) {
+  const list = readScannedItems();
+  let changed = false;
+  for (const rec of records || []) {
+    const orderNo = String(rec.orderNo || "").trim();
+    const tracking = String(rec.tracking || "").trim();
+    if (!orderNo && !tracking) continue;
+    const sameOrder = list.filter(
+      (row) => !scannedIsDone(row) && String(row.orderId) === String(rec.maDh || "")
+    );
+    let row = null;
+    if (rec.itemKey) {
+      row =
+        sameOrder.find((item) => item.itemKey && String(item.itemKey) === String(rec.itemKey)) ||
+        list.find((item) => item.itemKey && String(item.itemKey) === String(rec.itemKey) && !scannedIsDone(item));
+    }
+    if (!row && rec.itemsUrl) {
+      row = sameOrder.find((item) => sheetUrlClose(item.url, rec.itemsUrl));
+    }
+    if (!row && sameOrder.length === 1) row = sameOrder[0];
+    if (!row) continue;
+    if (orderNo) row.orderNo = orderNo;
+    if (tracking) row.tracking = tracking;
+    if (rec.itemKey && !row.itemKey) row.itemKey = rec.itemKey;
+    row.syncedAt = new Date().toISOString();
+    changed = true;
+  }
+  if (changed) writeScannedItems(list);
 }
 
 function findOrderInList(orders, id) {
@@ -1407,6 +1581,8 @@ async function syncOrderTrackingFromSheets({ orders, buyList, ptttList, source, 
     writeItemOverlays(itemOverlays);
     if (source === "mock") writeMockOrders(orders);
     writeBuyList(buyList);
+    rememberScannedItems(orders);
+    syncScannedFromSheetRecords(allRecords);
     return {
       ok: true,
       message:
@@ -1574,6 +1750,7 @@ app.get("/api/basso/orders", async (req, res) => {
   const live = await ordersFromRequest(req, { force });
   const buyList = readBuyList();
   const orders = live.orders || [];
+  rememberScannedItems(orders);
   const pic = ((live.meta && live.meta.pic) || [])
     .filter((p) => p && Number(p.user_id) !== 0)
     .map((p) => ({ id: String(p.user_id), name: String(p.name || "").trim() }))
@@ -1621,6 +1798,7 @@ app.get("/api/basso/orders", async (req, res) => {
       };
     })(),
     orders,
+    scannedItems: listOpenScannedItems(),
     counts: {
       can_xu_ly: orders.filter((o) => o.status === "can_xu_ly").length,
       can_mua_order: orders.filter((o) => o.status === "can_mua_order").length,
@@ -2034,6 +2212,7 @@ app.post("/api/basso/buy-list/create-admin-order", async (req, res) => {
         adminOrderNumber: String(body.order_number || "").trim(),
         adminWebOrderId: result.web_order_id || result.id || "",
       };
+      markScannedAdminCreated(bi, String(body.order_number || "").trim());
     }
     writeItemOverlays(overlays);
     const checkGroups = new Map();
@@ -2071,7 +2250,10 @@ app.post("/api/basso/items/admin-tracking", async (req, res) => {
   const overlays = readItemOverlays();
   const k = itemOverlayKey(orderId, itemId);
   const prev = overlays[k] || {};
-  if (!prev.adminOrderChecked) {
+  const snapEarly = readScannedItems().find(
+    (row) => String(row.orderId) === orderId && String(row.itemId) === itemId
+  );
+  if (!prev.adminOrderChecked && !(snapEarly && snapEarly.adminOrderChecked)) {
     return res.status(400).json({ ok: false, error: "Chưa tạo đơn Admin cho sản phẩm này" });
   }
   if (!tracking) {
@@ -2098,15 +2280,19 @@ app.post("/api/basso/items/admin-tracking", async (req, res) => {
 
   const live = await ordersFromRequest(req);
   const order = findOrderInList(live.orders, orderId);
-  const item = order && (order.items || []).find((it) => String(it.id) === itemId);
+  const liveItem = order && (order.items || []).find((it) => String(it.id) === itemId);
+  const snap = readScannedItems().find(
+    (row) => String(row.orderId) === orderId && String(row.itemId) === itemId
+  );
+  const item = liveItem || snap;
   let sheetCheck = { ok: false, updated: 0, unmatched: 0, error: "" };
-  if (order && item) {
+  if (item) {
     const groups = new Map();
-    groups.set(String(order.ptttId || ""), [
+    groups.set(String((order && order.ptttId) || (snap && snap.ptttId) || ""), [
       sheetCheckItem(
         {
           itemKey: item.itemKey || prev.itemKey || "",
-          orderCode: order.id,
+          orderCode: orderId,
           url: item.url || "",
           size: item.size || "",
           color: item.color || "",
@@ -2138,6 +2324,7 @@ app.post("/api/basso/items/admin-tracking", async (req, res) => {
     adminTrackingAt: new Date().toISOString(),
   };
   writeItemOverlays(overlays);
+  dropScannedItem(orderId, itemId);
   res.json({
     ok: true,
     adminTracking: tracking,
