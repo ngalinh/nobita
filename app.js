@@ -243,10 +243,15 @@ function refreshBagView() {
 /** Thêm ngay từ đơn đang hiện, lưu server phía sau — không chuyển tab. */
 async function addOrderItemsToBag(order, onlyItemId) {
   if (!order) return toast("Không tìm thấy đơn", { error: true });
-  const items = (order.items || []).filter(
-    (it) => !onlyItemId || String(it.id) === String(onlyItemId)
-  );
-  if (!items.length) return toast("Đơn không có sản phẩm", { error: true });
+  const items = (order.items || []).filter((it) => {
+    if (it.adminOrderChecked) return false;
+    return !onlyItemId || String(it.id) === String(onlyItemId);
+  });
+  if (!items.length) {
+    return toast(onlyItemId ? "Sản phẩm đã tạo đơn Admin, không thêm lại được" : "Không còn sản phẩm để thêm", {
+      error: true,
+    });
+  }
 
   let added = 0;
   for (const item of items) {
@@ -359,13 +364,14 @@ function updateMeta() {
     da_quet: scannedProductRows().length,
   };
   state.orders.forEach((o) => {
+    if (!orderStillBuyable(o)) return;
     if (o.status === "can_mua_order") c.can_mua_order++;
     else if (o.status === "can_mua_co") c.can_mua_co++;
     else if (o.status === "can_xu_ly") c.can_xu_ly++;
   });
   // Mock: đếm thêm đơn Order/CO đã gán PIC = mình
   if (state.source !== "partner") {
-    c.can_xu_ly = state.orders.filter((o) => isAssignedToCurrentUser(o)).length;
+    c.can_xu_ly = state.orders.filter((o) => orderStillBuyable(o) && isAssignedToCurrentUser(o)).length;
   }
   Object.keys(c).forEach((k) => $(`[data-count="${k}"]`).text(c[k]));
 
@@ -461,6 +467,7 @@ function filteredOrders() {
       return false;
     }
 
+    if (!orderStillBuyable(o)) return false;
     if (state.site && !websiteMatchesFilter(o.website, state.site)) return false;
     if (!q) return true;
     return [o.id, o.phone, o.customerName, o.website, o.note, o.handler, o.staff, ...(o.items || []).map((i) => i.name + i.url)]
@@ -472,6 +479,7 @@ function filteredOrders() {
 
 function itemRows(order) {
   return (order.items || [])
+    .filter((item) => !item.adminOrderChecked)
     .map((item, i) => {
       const total = Number(item.price || 0) * Number(item.qty || 1);
       const img = item.image || "/assets/img/dummy.png";
@@ -829,11 +837,18 @@ function formatScanTime(iso, order) {
   return created ? formatReportHeaderDate(created) : "—";
 }
 
-/** SP đã có Order # hoặc Tracking — cũ trên, mới quét xuống dưới cùng. */
+function orderStillBuyable(order) {
+  return (order.items || []).some((it) => !it.adminOrderChecked);
+}
+
+/** SP đã có Order # hoặc Tracking — cũ trên, mới quét xuống dưới cùng.
+ *  Rời tab khi tracking đã cập nhật API và checkbox Tracking tích cả Excel lẫn Nobita.
+ */
 function scannedProductRows() {
   const rows = [];
   for (const order of state.orders || []) {
     for (const item of order.items || []) {
+      if (item.adminTrackingChecked && item.adminTrackingSheetChecked) continue;
       const orderNo = String(item.orderNo || "").trim();
       const tracking = String(item.tracking || "").trim();
       if (!orderNo && !tracking) continue;
@@ -890,7 +905,11 @@ function renderScanned() {
           <div>${escapeHtml(item.tracking || "")}</div>
           <div class="mt-1">${scanTick(item.adminTrackingChecked, item.adminTrackingChecked ? "Đã cập nhật tracking cho sản phẩm" : "Tích khi bấm Cập nhật")}</div>
         </td>
-        <td><a href="javascript:" class="text-info font-weight-bold js-scan-add-bag">Add bag</a></td>
+        <td>${
+          item.adminOrderChecked
+            ? `<span class="text-muted">Đã tạo Admin</span>`
+            : `<a href="javascript:" class="text-info font-weight-bold js-scan-add-bag">Add bag</a>`
+        }</td>
         <td>
           <div class="input-group input-group-sm">
             <input type="text" class="form-control form-control-sm js-admin-tracking" value="${escapeHtml(item.adminOrderChecked ? item.adminTracking || "" : "")}" placeholder="Tracking" title="${item.adminOrderChecked ? escapeHtml("Tracking sản phẩm, lấy từ Tracking number") : "Tạo đơn Admin từ Đang mua trước"}" readonly ${item.adminOrderChecked ? "" : "disabled"} />
@@ -906,18 +925,28 @@ function renderScanned() {
 async function addScannedToBag(pairs) {
   if (!pairs.length) return toast("Chọn sản phẩm rồi bấm Add bag", { error: true, basso: true });
   let added = 0;
+  let blockedAdmin = 0;
   const toSave = [];
   for (const pair of pairs) {
     const order = (state.orders || []).find((o) => String(o.id) === String(pair.orderId));
     const item = order && (order.items || []).find((it) => String(it.id) === String(pair.itemId));
     if (!order || !item) continue;
+    if (item.adminOrderChecked) {
+      blockedAdmin += 1;
+      continue;
+    }
     if (state.buyList.some((x) => String(x.itemId) === String(item.id))) continue;
     state.buyList.push(localBuyItem(order, item));
     toSave.push(pair);
     added += 1;
   }
   refreshBagView();
-  if (!added) return toast("Sản phẩm đã có trong danh sách", { error: true, basso: true });
+  if (!added) {
+    return toast(blockedAdmin ? "Sản phẩm đã tạo đơn Admin, không thêm lại được" : "Sản phẩm đã có trong danh sách", {
+      error: true,
+      basso: true,
+    });
+  }
   toast(added === 1 ? "Đã thêm sản phẩm" : `Đã thêm ${added} sản phẩm`, { success: true });
 
   let lastItems = null;
@@ -1706,19 +1735,13 @@ $(function () {
       const order = (state.orders || []).find((o) => String(o.id) === orderId);
       const item = order && (order.items || []).find((it) => String(it.id) === itemId);
       if (item) {
-        item.adminTracking = data.adminTracking || "";
+        item.adminTracking = data.adminTracking || tracking;
         item.adminTrackingChecked = !!data.adminTrackingChecked;
+        item.adminTrackingSheetChecked = !!data.adminTrackingSheetChecked;
       }
       renderScanned();
-      const sheetErr = data.sheetCheck && data.sheetCheck.error;
-      toast(
-        sheetErr
-          ? `Đã cập nhật tracking. Excel: ${sheetErr}`
-          : tracking
-            ? "Đã cập nhật tracking"
-            : "Đã xóa tracking",
-        sheetErr ? { error: true } : { success: true }
-      );
+      updateMeta();
+      toast("Đã cập nhật tracking và tích checkbox Excel", { success: true });
     } catch (err) {
       toast("Lỗi lưu tracking: " + (err.message || String(err)), { error: true });
     } finally {

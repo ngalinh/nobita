@@ -50,6 +50,7 @@ const {
   matchLocalPtttId,
   normalizeWebsiteKey,
   createWebOrder,
+  updateOrder,
   loginWithCredentials,
 } = require("./lib/basso-partner");
 const {
@@ -295,6 +296,7 @@ function applyItemOverlays(orders) {
       if (ov.adminOrderNumber) item.adminOrderNumber = ov.adminOrderNumber;
       if (ov.adminTracking != null) item.adminTracking = ov.adminTracking;
       if (ov.adminTrackingChecked) item.adminTrackingChecked = true;
+      if (ov.adminTrackingSheetChecked) item.adminTrackingSheetChecked = true;
     }
   }
   return orders;
@@ -1767,7 +1769,12 @@ app.post("/api/basso/buy-list/add-all", async (req, res) => {
   const buyList = readBuyList();
   let added = 0;
   let skipped = 0;
+  let adminSkipped = 0;
   for (const item of order.items) {
+    if (item.adminOrderChecked) {
+      adminSkipped += 1;
+      continue;
+    }
     if (buyList.some((x) => x.itemId === item.id)) {
       skipped += 1;
       continue;
@@ -1777,6 +1784,9 @@ app.post("/api/basso/buy-list/add-all", async (req, res) => {
   }
   writeBuyList(buyList);
 
+  if (!added && adminSkipped && !skipped) {
+    return res.json({ ok: false, error: "Sản phẩm đã tạo đơn Admin, không thêm lại được", items: buyList });
+  }
   if (!added && skipped) {
     return res.json({ ok: false, error: "Sản phẩm đã có trong danh sách", items: buyList });
   }
@@ -1798,6 +1808,9 @@ app.post("/api/basso/buy-list/add-item", async (req, res) => {
 
   const item = (order.items || []).find((it) => String(it.id) === itemId);
   if (!item) return res.status(404).json({ ok: false, error: "Không tìm thấy sản phẩm" });
+  if (item.adminOrderChecked) {
+    return res.status(400).json({ ok: false, error: "Sản phẩm đã tạo đơn Admin, không thêm lại được" });
+  }
 
   const buyList = readBuyList();
   if (buyList.some((x) => x.itemId === item.id)) {
@@ -2061,43 +2074,75 @@ app.post("/api/basso/items/admin-tracking", async (req, res) => {
   if (!prev.adminOrderChecked) {
     return res.status(400).json({ ok: false, error: "Chưa tạo đơn Admin cho sản phẩm này" });
   }
+  if (!tracking) {
+    return res.status(400).json({ ok: false, error: "Chưa có Tracking number" });
+  }
+  if (!/^\d+$/.test(itemId)) {
+    return res.status(400).json({ ok: false, error: "Sản phẩm không có item id Basso để cập nhật tracking" });
+  }
+
+  const partner = readPartnerConfig(CONFIG_FILE);
+  const userToken = extractBearerToken(req);
+  try {
+    await updateOrder(
+      partner,
+      {
+        order_code: orderId,
+        update_items: [{ id: Number(itemId), tracking_code: tracking }],
+      },
+      { userToken }
+    );
+  } catch (err) {
+    return res.status(400).json({ ok: false, error: err.message || "Cập nhật tracking qua API thất bại" });
+  }
+
+  const live = await ordersFromRequest(req);
+  const order = findOrderInList(live.orders, orderId);
+  const item = order && (order.items || []).find((it) => String(it.id) === itemId);
+  let sheetCheck = { ok: false, updated: 0, unmatched: 0, error: "" };
+  if (order && item) {
+    const groups = new Map();
+    groups.set(String(order.ptttId || ""), [
+      sheetCheckItem(
+        {
+          itemKey: item.itemKey || prev.itemKey || "",
+          orderCode: order.id,
+          url: item.url || "",
+          size: item.size || "",
+          color: item.color || "",
+        },
+        { tracking: true }
+      ),
+    ]);
+    sheetCheck = await tickExcelChecks(groups);
+  } else {
+    sheetCheck.error = "Không thấy sản phẩm để tích checkbox Excel";
+  }
+
+  const sheetOk = !!(sheetCheck && sheetCheck.updated > 0 && !sheetCheck.error);
+  if (!sheetOk) {
+    return res.status(400).json({
+      ok: false,
+      error: "Tracking đã gửi API nhưng chưa tích được checkbox Excel: " + (sheetCheck.error || "không khớp dòng"),
+      adminTracking: tracking,
+      adminTrackingChecked: false,
+      sheetCheck,
+    });
+  }
+
   overlays[k] = {
     ...prev,
     adminTracking: tracking,
-    adminTrackingChecked: !!tracking,
+    adminTrackingChecked: true,
+    adminTrackingSheetChecked: true,
     adminTrackingAt: new Date().toISOString(),
   };
   writeItemOverlays(overlays);
-
-  let sheetCheck = { ok: false, updated: 0, unmatched: 0, error: "" };
-  if (tracking) {
-    const live = await ordersFromRequest(req);
-    const order = findOrderInList(live.orders, orderId);
-    const item = order && (order.items || []).find((it) => String(it.id) === itemId);
-    if (order && item) {
-      const groups = new Map();
-      groups.set(String(order.ptttId || ""), [
-        sheetCheckItem(
-          {
-            itemKey: item.itemKey || prev.itemKey || "",
-            orderCode: order.id,
-            url: item.url || "",
-            size: item.size || "",
-            color: item.color || "",
-          },
-          { tracking: true }
-        ),
-      ]);
-      sheetCheck = await tickExcelChecks(groups);
-    } else {
-      sheetCheck.error = "Không thấy sản phẩm để tích checkbox Excel";
-    }
-  }
-
   res.json({
     ok: true,
     adminTracking: tracking,
-    adminTrackingChecked: !!tracking,
+    adminTrackingChecked: true,
+    adminTrackingSheetChecked: true,
     sheetCheck,
   });
 });
