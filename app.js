@@ -2219,10 +2219,6 @@ $(function () {
     }
   });
 
-  $("#btnExport").on("click", function () {
-    toast("Xuất Excel (mock)");
-  });
-
   loadAll({ clearBag: true }).catch((err) => {
     $("#emptyState").prop("hidden", false).text("Lỗi: " + err.message);
   });
