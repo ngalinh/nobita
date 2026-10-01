@@ -253,7 +253,7 @@ function applyOrderOverlays(orders, websitePtttMap) {
   const suggestions = websitePtttMap || websitePtttCache.map || readWebsitePttt();
   for (const order of orders || []) {
     const ov = overlays[order.id] || overlays[order.bassoId] || {};
-    if (ov.note != null) order.note = ov.note;
+    if (ov.note != null && !order.bassoId) order.note = ov.note;
     if (ov.handler != null) order.handler = ov.handler;
     const sug = lookupWebsitePttt(suggestions, order.website);
     order.ptttSuggestId = sug ? sug.ptttId || "" : "";
