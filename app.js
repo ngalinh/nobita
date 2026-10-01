@@ -1795,16 +1795,22 @@ $(function () {
 
   $("#ordersBody").on("click", ".js-save-note", async function () {
     const $tr = $(this).closest("tr");
-    const id = $tr.data("id");
+    const id = String($tr.attr("data-id") || "");
     const note = $tr.find("[data-note]").val();
-    await apiFetch(`/api/basso/orders/${encodeURIComponent(id)}/note`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ note }),
-    });
-    const o = state.orders.find((x) => x.id === id);
-    if (o) o.note = note;
-    toast("Đã lưu ghi chú " + id);
+    try {
+      const res = await apiFetch(`/api/basso/orders/${encodeURIComponent(id)}/note`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ note }),
+      });
+      const data = await res.json();
+      const o = state.orders.find((x) => String(x.id) === id);
+      if (o) o.note = note;
+      if (!data.ok) return toast(data.error || "Không đồng bộ ghi chú sang Basso", { error: true });
+      toast(data.synced ? "Đã lưu ghi chú sang Basso " + id : data.warning || "Đã lưu ghi chú " + id);
+    } catch (err) {
+      toast("Lỗi lưu ghi chú: " + (err.message || String(err)), { error: true });
+    }
   });
 
   // Cột PIC bên phải = Người xử lý (handler) — không đụng Nhân viên (staff)

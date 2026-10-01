@@ -1822,7 +1822,6 @@ app.patch("/api/basso/orders/:id/note", async (req, res) => {
   writeOrderOverlays(overlays);
   order.note = note;
 
-  // Mock fallback: vẫn ghi file mock nếu đang dùng mock
   if (live.source === "mock") {
     const orders = readMockOrders();
     const row = findOrderInList(orders, id);
@@ -1830,9 +1829,39 @@ app.patch("/api/basso/orders/:id/note", async (req, res) => {
       row.note = note;
       writeMockOrders(orders);
     }
+    return res.json({ ok: true, order, synced: false });
   }
 
-  res.json({ ok: true, order });
+  const partner = readPartnerConfig(CONFIG_FILE);
+  if (!partnerConfigured(partner)) {
+    return res.status(400).json({
+      ok: false,
+      error: "Đã lưu trên Nobita, chưa cấu hình Partner API nên chưa sang Basso",
+    });
+  }
+  const text = note.trim();
+  if (!text) {
+    return res.json({
+      ok: true,
+      order,
+      synced: false,
+      warning: "Đã xóa ghi chú trên Nobita. Basso không nhận ghi chú trống.",
+    });
+  }
+  try {
+    await updateOrder(
+      partner,
+      { order_code: String(order.id), admin_note: text },
+      { userToken: extractBearerToken(req) }
+    );
+  } catch (err) {
+    return res.status(400).json({
+      ok: false,
+      error: "Đã lưu trên Nobita, chưa sang Basso: " + (err.message || String(err)),
+    });
+  }
+
+  res.json({ ok: true, order, synced: true });
 });
 
 app.patch("/api/basso/orders/:id/handler", async (req, res) => {
