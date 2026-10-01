@@ -2023,6 +2023,19 @@ app.post("/api/basso/buy-list/add-item", async (req, res) => {
   if (buyList.some((x) => x.itemId === item.id)) {
     return res.json({ ok: false, error: "Sản phẩm đã có trong danh sách", items: buyList });
   }
+  if (buyList.length) {
+    const anchor = String(buyList[0].orderNo || "").trim();
+    const incoming = String(item.orderNo || "").trim();
+    if (incoming !== anchor) {
+      return res.status(400).json({
+        ok: false,
+        error: anchor
+          ? `Chỉ thêm sản phẩm cùng Order number với sản phẩm đầu tiên (${anchor})`
+          : "Chỉ thêm sản phẩm cùng Order number với sản phẩm đầu tiên",
+        items: buyList,
+      });
+    }
+  }
 
   buyList.push(toBuyItem(order, item));
   writeBuyList(buyList);
@@ -2313,22 +2326,32 @@ app.post("/api/basso/items/admin-tracking", async (req, res) => {
   const snap = readScannedItems().find(
     (row) => String(row.orderId) === orderId && String(row.itemId) === itemId
   );
-  const item = liveItem || snap;
+  const posted = {
+    itemKey: String((req.body && req.body.itemKey) || "").trim(),
+    url: String((req.body && req.body.url) || "").trim(),
+    size: String((req.body && req.body.size) || "").trim(),
+    color: String((req.body && req.body.color) || "").trim(),
+    ptttId: String((req.body && req.body.ptttId) || "").trim(),
+  };
+  const item = liveItem || snap || (posted.itemKey || posted.url ? posted : null);
   let sheetCheck = { ok: false, updated: 0, unmatched: 0, error: "" };
   if (item) {
     const groups = new Map();
-    groups.set(String((order && order.ptttId) || (snap && snap.ptttId) || ""), [
-      sheetCheckItem(
-        {
-          itemKey: item.itemKey || prev.itemKey || "",
-          orderCode: orderId,
-          url: item.url || "",
-          size: item.size || "",
-          color: item.color || "",
-        },
-        { tracking: true }
-      ),
-    ]);
+    groups.set(
+      String((order && order.ptttId) || (snap && snap.ptttId) || posted.ptttId || item.ptttId || ""),
+      [
+        sheetCheckItem(
+          {
+            itemKey: item.itemKey || posted.itemKey || prev.itemKey || "",
+            orderCode: orderId,
+            url: item.url || posted.url || "",
+            size: item.size || posted.size || "",
+            color: item.color || posted.color || "",
+          },
+          { tracking: true }
+        ),
+      ]
+    );
     sheetCheck = await tickExcelChecks(groups);
   } else {
     sheetCheck.error = "Không thấy sản phẩm để tích checkbox Excel";

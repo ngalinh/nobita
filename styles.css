@@ -572,3 +572,106 @@ body.drawer-open {
   cursor: pointer;
   background: #fff;
 }
+
+/* Ô thiếu thông tin — cùng màu Basso (.validationElement) */
+.form-control.validationElement,
+select.form-control.validationElement {
+  background-color: #ffe1e6 !important;
+  border-color: #e52f3b !important;
+}
+
+.nobita-confirm[hidden] {
+  display: none !important;
+}
+
+.nobita-confirm {
+  position: fixed;
+  inset: 0;
+  z-index: 20000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nobita-confirm-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.nobita-confirm-box {
+  position: relative;
+  z-index: 1;
+  width: min(478px, calc(100vw - 32px));
+  background: #fff;
+  border-radius: 5px;
+  padding: 17px 16px 24px;
+  text-align: center;
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.18);
+}
+
+.nobita-confirm-icon {
+  width: 80px;
+  height: 80px;
+  margin: 12px auto 8px;
+  border: 4px solid #f8bb86;
+  border-radius: 50%;
+  color: #f8bb86;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.nobita-confirm-icon .bar {
+  width: 5px;
+  height: 34px;
+  border-radius: 2px;
+  background: #f8bb86;
+}
+
+.nobita-confirm-icon .dot {
+  width: 7px;
+  height: 7px;
+  margin-top: 6px;
+  border-radius: 50%;
+  background: #f8bb86;
+}
+
+.nobita-confirm-box h2 {
+  margin: 12px 0 8px;
+  font-size: 22px;
+  font-weight: 600;
+  color: #595959;
+}
+
+.nobita-confirm-box p {
+  margin: 0 0 22px;
+  font-size: 16px;
+  color: #797979;
+}
+
+.nobita-confirm-actions {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
+.nobita-confirm-actions button {
+  border: 0;
+  border-radius: 5px;
+  padding: 10px 24px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.nobita-confirm-actions .js-cancel {
+  background: #efefef;
+  color: #555;
+}
+
+.nobita-confirm-actions .js-ok {
+  background: #f05050;
+  color: #fff;
+}

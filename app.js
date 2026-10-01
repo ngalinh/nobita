@@ -877,7 +877,7 @@ function renderScanned() {
     const order = row.order;
     const img = item.image || "/assets/img/dummy.png";
     $body.append(`
-      <tr data-order-id="${escapeHtml(order.id)}" data-item-id="${escapeHtml(item.id)}" data-sheet-tracking="${escapeHtml(item.tracking || "")}">
+      <tr data-order-id="${escapeHtml(order.id)}" data-item-id="${escapeHtml(item.id)}" data-sheet-tracking="${escapeHtml(item.tracking || "")}" data-item-key="${escapeHtml(item.itemKey || "")}" data-url="${escapeHtml(item.url || "")}" data-size="${escapeHtml(item.size || "")}" data-color="${escapeHtml(item.color || "")}" data-pttt-id="${escapeHtml(item.ptttId || "")}">
         <td><input type="checkbox" class="js-scan-check" /></td>
         <td>${i + 1}</td>
         <td>${escapeHtml(formatScanTime(item.syncedAt, order))}</td>
@@ -917,32 +917,59 @@ function renderScanned() {
   });
 }
 
+function bagAnchorOrderNo() {
+  const first = state.buyList[0];
+  return first ? String(first.orderNo || "").trim() : null;
+}
+
+function sameBagOrderNoMessage(anchor) {
+  return anchor
+    ? `Chỉ thêm sản phẩm cùng Order number với sản phẩm đầu tiên (${anchor})`
+    : "Chỉ thêm sản phẩm cùng Order number với sản phẩm đầu tiên";
+}
+
 async function addScannedToBag(pairs) {
   if (!pairs.length) return toast("Chọn sản phẩm rồi bấm Add bag", { error: true, basso: true });
   let added = 0;
   let blockedAdmin = 0;
+  let blockedOrder = 0;
   const toSave = [];
+  let anchor = bagAnchorOrderNo();
   for (const pair of pairs) {
     const order = (state.orders || []).find((o) => String(o.id) === String(pair.orderId));
     const item = order && (order.items || []).find((it) => String(it.id) === String(pair.itemId));
     if (!order || !item) continue;
+    const orderNo = String(item.orderNo || "").trim();
+    if (anchor == null) anchor = orderNo;
     if (item.adminOrderChecked) {
       blockedAdmin += 1;
       continue;
     }
     if (state.buyList.some((x) => String(x.itemId) === String(item.id))) continue;
+    if (orderNo !== anchor) {
+      blockedOrder += 1;
+      continue;
+    }
     state.buyList.push(localBuyItem(order, item));
     toSave.push(pair);
     added += 1;
   }
   refreshBagView();
   if (!added) {
+    if (blockedOrder) return toast(sameBagOrderNoMessage(anchor), { error: true, basso: true });
     return toast(blockedAdmin ? "Sản phẩm đã tạo đơn Admin, không thêm lại được" : "Sản phẩm đã có trong danh sách", {
       error: true,
       basso: true,
     });
   }
-  toast(added === 1 ? "Đã thêm sản phẩm" : `Đã thêm ${added} sản phẩm`, { success: true });
+  toast(
+    blockedOrder
+      ? `Đã thêm ${added} sản phẩm. ${blockedOrder} sản phẩm khác Order number không được thêm`
+      : added === 1
+        ? "Đã thêm sản phẩm"
+        : `Đã thêm ${added} sản phẩm`,
+    { success: true }
+  );
 
   let lastItems = null;
   for (const pair of toSave) {
@@ -1724,7 +1751,16 @@ $(function () {
       const res = await apiFetch("/api/basso/items/admin-tracking", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderId, itemId, tracking }),
+        body: JSON.stringify({
+          orderId,
+          itemId,
+          tracking,
+          itemKey: String($tr.attr("data-item-key") || ""),
+          url: String($tr.attr("data-url") || ""),
+          size: String($tr.attr("data-size") || ""),
+          color: String($tr.attr("data-color") || ""),
+          ptttId: String($tr.attr("data-pttt-id") || ""),
+        }),
       });
       const data = await res.json();
       if (!data.ok) return toast(data.error || "Lưu tracking thất bại", { error: true });
@@ -1958,14 +1994,64 @@ $(function () {
     }
   });
 
+  const adminRequiredFields = [
+    "#dm_created_time",
+    "#dm_country",
+    "#dm_warehouse",
+    "#dm_order_number",
+    "#dm_buyer",
+    "#dm_payment",
+  ];
+
+  function fieldIsEmpty($el) {
+    return !String($el.val() || "").trim();
+  }
+
+  function highlightMissingFields(selectors) {
+    let ok = true;
+    selectors.forEach((sel) => {
+      const $el = $(sel);
+      const missing = fieldIsEmpty($el);
+      $el.toggleClass("validationElement", missing);
+      if (missing) ok = false;
+    });
+    return ok;
+  }
+
+  $("#pane-buying").on("input change", adminRequiredFields.join(","), function () {
+    $(this).toggleClass("validationElement", fieldIsEmpty($(this)));
+  });
+
+  function bassoConfirm(title, text) {
+    return new Promise((resolve) => {
+      const $box = $("#nobitaConfirm");
+      $("#nobitaConfirmTitle").text(title);
+      $("#nobitaConfirmText").text(text || "");
+      $box.prop("hidden", false);
+      const finish = (ok) => {
+        $box.prop("hidden", true);
+        $box.find(".js-ok, .js-cancel, .nobita-confirm-backdrop").off("click.nobitaConfirm");
+        $(document).off("keydown.nobitaConfirm");
+        resolve(ok);
+      };
+      $box.find(".js-ok").on("click.nobitaConfirm", () => finish(true));
+      $box.find(".js-cancel, .nobita-confirm-backdrop").on("click.nobitaConfirm", () => finish(false));
+      $(document).on("keydown.nobitaConfirm", (e) => {
+        if (e.key === "Escape") finish(false);
+        else if (e.key === "Enter") finish(true);
+      });
+      $box.find(".js-ok").trigger("focus");
+    });
+  }
+
   $("#btnCreateAdminOrder").on("click", async function () {
     if (!state.buyList.length) return toast("Bạn chưa chọn sản phẩm");
-    if (!$("#dm_country").val() || !$("#dm_warehouse").val() || !$("#dm_payment").val()) {
-      return toast("Vui lòng điền đủ các trường *");
-    }
-    if (!$("#dm_created_time").val()) return toast("Vui lòng chọn Thời gian order");
-    if (!String($("#dm_order_number").val() || "").trim()) return toast("Vui lòng nhập Order number");
-    if (!confirm("Xác nhận tạo đơn hàng Admin?\nCác sản phẩm sẽ được đánh dấu là đã mua.")) return;
+    if (!highlightMissingFields(adminRequiredFields)) return;
+    const confirmed = await bassoConfirm(
+      "Xác nhận tạo đơn hàng",
+      "Các sản phẩm sẽ được đánh dấu là đã mua"
+    );
+    if (!confirmed) return;
 
     const $btn = $(this);
     const oldHtml = $btn.html();
