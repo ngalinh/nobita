@@ -303,6 +303,36 @@ function applyItemOverlays(orders) {
   return orders;
 }
 
+/** Sản phẩm còn trong list mua của Basso thì đơn Admin đã bị hủy hoặc không còn giữ hàng. Bỏ cờ local để Làm mới hiện lại. */
+function releaseAdminFlagsForReturnedItems(orders) {
+  const overlays = readItemOverlays();
+  let changed = false;
+  for (const order of orders || []) {
+    for (const item of order.items || []) {
+      const k = itemOverlayKey(order.id, item.id);
+      const ov = overlays[k];
+      if (ov && ov.adminOrderChecked) {
+        delete ov.adminOrderChecked;
+        delete ov.adminOrderCheckedAt;
+        delete ov.adminOrderNumber;
+        delete ov.adminWebOrderId;
+        delete ov.adminTracking;
+        delete ov.adminTrackingChecked;
+        delete ov.adminTrackingSheetChecked;
+        delete ov.adminTrackingAt;
+        overlays[k] = ov;
+        changed = true;
+      }
+      item.adminOrderChecked = false;
+      item.adminOrderNumber = "";
+      item.adminTrackingChecked = false;
+      item.adminTrackingSheetChecked = false;
+    }
+  }
+  if (changed) writeItemOverlays(overlays);
+  return orders;
+}
+
 function readScannedItems() {
   try {
     const data = JSON.parse(fs.readFileSync(SCANNED_ITEMS_FILE, "utf8"));
@@ -371,8 +401,8 @@ function rememberScannedItems(orders) {
         ...snap,
         orderNo: snap.orderNo || prev.orderNo || "",
         tracking: snap.tracking || prev.tracking || "",
-        adminOrderChecked: !!(snap.adminOrderChecked || prev.adminOrderChecked),
-        adminOrderNumber: snap.adminOrderNumber || prev.adminOrderNumber || "",
+        adminOrderChecked: !!snap.adminOrderChecked,
+        adminOrderNumber: snap.adminOrderChecked ? snap.adminOrderNumber || prev.adminOrderNumber || "" : "",
         syncedAt: snap.syncedAt || prev.syncedAt || "",
       };
       if (idx >= 0) list[idx] = next;
@@ -539,6 +569,7 @@ async function loadLiveOrders({ force = false, userToken = "" } = {}) {
     userToken,
   });
   applyItemOverlays(orders);
+  releaseAdminFlagsForReturnedItems(orders);
   applyOrderOverlays(orders, ptttSug.map);
   liveOrdersCache = {
     at: Date.now(),
