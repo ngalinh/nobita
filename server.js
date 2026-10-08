@@ -208,9 +208,50 @@ function resolveWebsitePtttMap(adminMap, settingsPttt) {
   return merged;
 }
 
-async function loadWebsitePtttSuggestions(partner, { force = false, userToken = "" } = {}) {
-  const cacheKey =
-    cacheKeyForToken(userToken) + "|" + (partner.adminBaseUrl || "") + "|" + (partner.baseUrl || "");
+function suggestionWebsites(websites, orders) {
+  const list = [];
+  const seen = new Set();
+  const add = (raw) => {
+    const s = String(raw || "").trim();
+    if (!s) return;
+    const k = s.toLowerCase();
+    if (seen.has(k)) return;
+    seen.add(k);
+    list.push(s);
+  };
+  for (const w of websites || []) add(w);
+  const covered = new Set(list.map((w) => normalizeWebsiteKeyLocal(w)));
+  for (const order of orders || []) {
+    const raw = String(order.website || "").trim();
+    if (!raw) continue;
+    const key = normalizeWebsiteKeyLocal(raw);
+    if (!key || covered.has(key)) continue;
+    add(raw.includes(".") ? raw : `${raw}.com`);
+    covered.add(key);
+  }
+  return list;
+}
+
+async function mapPool(items, limit, fn) {
+  const list = items || [];
+  const out = new Array(list.length);
+  let cursor = 0;
+  const workers = Array.from({ length: Math.min(limit, list.length) }, async () => {
+    while (cursor < list.length) {
+      const idx = cursor;
+      cursor += 1;
+      out[idx] = await fn(list[idx], idx);
+    }
+  });
+  await Promise.all(workers);
+  return out;
+}
+
+async function loadWebsitePtttSuggestions(partner, { force = false, userToken = "", websites = [] } = {}) {
+  const siteList = [...new Set((websites || []).map((s) => String(s || "").trim()).filter(Boolean))].sort((a, b) =>
+    a.localeCompare(b)
+  );
+  const cacheKey = cacheKeyForToken(userToken) + "|" + (partner.baseUrl || "") + "|" + siteList.join(",");
   const ttl =
     websitePtttCache.error && !websitePtttCache.adminCount
       ? WEBSITE_PTTT_FAIL_CACHE_MS
@@ -224,17 +265,22 @@ async function loadWebsitePtttSuggestions(partner, { force = false, userToken = 
     return websitePtttCache;
   }
   const settings = getSettings();
-  let adminMap = {};
+  const adminMap = {};
   let source = "local";
-  let error = "";
-  try {
-    const data = await getLastWebPaymentByWebsite(partner, { days: 180, userToken });
-    adminMap = buildWebsitePtttFromAdmin(data.by_website || {});
-    source = data._sourceBase || partner.adminBaseUrl || partner.baseUrl || "admin";
-  } catch (err) {
-    error = String(err.message || err);
-    console.warn("[partner] getLastWebPaymentByWebsite:", error);
-  }
+  const errors = [];
+  await mapPool(siteList, 6, async (site) => {
+    try {
+      const data = await getLastWebPaymentByWebsite(partner, { days: 180, website: site, userToken });
+      const part = buildWebsitePtttFromAdmin(data.by_website || {});
+      Object.assign(adminMap, part);
+      if (Object.keys(part).length) source = data._sourceBase || partner.baseUrl || "admin";
+    } catch (err) {
+      const msg = String(err.message || err);
+      errors.push(msg);
+      console.warn("[partner] getLastWebPaymentByWebsite:", site, msg);
+    }
+  });
+  const error = Object.keys(adminMap).length ? "" : errors[0] || "";
   const map = resolveWebsitePtttMap(adminMap, settings.pttt || []);
   const adminCount = Object.keys(adminMap).length;
   websitePtttCache = {
@@ -558,15 +604,17 @@ async function loadLiveOrders({ force = false, userToken = "" } = {}) {
     return liveOrdersCache;
   }
 
-  const [meta, ptttSug] = await Promise.all([
-    getWebOrderCreateMeta(partner, { userToken }),
-    loadWebsitePtttSuggestions(partner, { force, userToken }),
-  ]);
+  const meta = await getWebOrderCreateMeta(partner, { userToken });
   const overlay = readOrderOverlays();
   const { orders, pendingByTab, websites } = await fetchAllWebOrders(partner, {
     picList: meta.pic || [],
     overlay,
     userToken,
+  });
+  const ptttSug = await loadWebsitePtttSuggestions(partner, {
+    force,
+    userToken,
+    websites: suggestionWebsites(websites, orders),
   });
   applyItemOverlays(orders);
   releaseAdminFlagsForReturnedItems(orders);
