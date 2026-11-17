@@ -59,6 +59,7 @@ const state = {
   picOptions: ["Lựa chọn", "Dzuong", "Thùy Linh", "Vinh", "Thuỷ", "Bình", "Tâm", "Thảo", "Vân"],
   source: "mock",
   bassoSiteUrl: "https://basso.vn",
+  adminModalOpen: false,
   pendingByTab: {},
   websitePttt: {},
   websitePtttSource: "",
@@ -221,7 +222,8 @@ function localBuyItem(order, item, bag = "") {
     website: order.website || "",
     brand: order.brand || "",
     currencySymbol: order.currencySymbol || "$",
-    ptttId: order.ptttId || order.ptttSuggestId || "",
+    ptttId: item.ptttId || order.ptttId || order.ptttSuggestId || "",
+    checkerUrl: item.checkerUrl || "",
     name: item.name,
     url: item.url || "",
     image: item.image || "",
@@ -555,6 +557,51 @@ function calcBuyTotals() {
   $("#dm_total").val(money(goodsAdmin));
   $("#dm_subtotal").val(money(subDm));
   $("#btnCreateAdminOrder").prop("disabled", adminItems.length === 0);
+
+  const shipAb = Number($("#ab_ship").val() || 0);
+  const discAb = Number($("#ab_discount").val() || 0);
+  $("#ab_total").val(money(goodsAdmin));
+  $("#ab_subtotal").val(money(goodsAdmin - discAb + shipAb));
+  $("#btnModalCreateAdmin").prop("disabled", adminItems.length === 0);
+}
+
+const LAST_ADMIN_CREATE_KEY = "nobita_last_admin_create";
+
+function loadLastAdminCreate() {
+  try {
+    const raw = localStorage.getItem(LAST_ADMIN_CREATE_KEY);
+    const data = raw ? JSON.parse(raw) : null;
+    return data && typeof data === "object" ? data : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveLastAdminCreate(payload) {
+  try {
+    localStorage.setItem(LAST_ADMIN_CREATE_KEY, JSON.stringify(payload || {}));
+  } catch {
+    /* ignore */
+  }
+}
+
+function collectAdminCreatePayload(prefix) {
+  const p = prefix === "ab" ? "ab" : "dm";
+  return {
+    created_time: $(`#${p}_created_time`).val(),
+    country_id: $(`#${p}_country`).val(),
+    warehouse_id: $(`#${p}_warehouse`).val(),
+    order_number: $(`#${p}_order_number`).val(),
+    note: $(`#${p}_note`).val(),
+    payment_id: $(`#${p}_payment`).val(),
+    ship_fee: $(`#${p}_ship`).val() || 0,
+    discount: $(`#${p}_discount`).val() || 0,
+    buy_rate: Number($(`#${p}_payment option:selected`).data("rate") || 0),
+    cashback_rate: $(`#${p}_cashback_rate`).val() || 0,
+    web_cashback_id: $(`#${p}_web_cashback`).val() || "",
+    create_billing: true,
+    branch: "ha-noi",
+  };
 }
 
 function buyListRowHtml(item, i, { admin } = {}) {
@@ -588,6 +635,16 @@ function buyListRowHtml(item, i, { admin } = {}) {
       </tr>`;
 }
 
+function renderAdminModalBag() {
+  const $body = $("#abBuyBody").empty();
+  const adminItems = adminBagItems();
+  $("#abBuyEmpty").prop("hidden", adminItems.length > 0);
+  adminItems.forEach((item, i) => {
+    $body.append(buyListRowHtml(item, i, { admin: true }));
+  });
+  calcBuyTotals();
+}
+
 function renderBuyList() {
   const $body = $("#buyBody").empty();
   const $bodyAdmin = $("#buyBodyAdmin").empty();
@@ -603,7 +660,137 @@ function renderBuyList() {
     $bodyAdmin.append(buyListRowHtml(item, i, { admin: true }));
   });
 
+  if (state.adminModalOpen) renderAdminModalBag();
   calcBuyTotals();
+}
+
+function fillAdminModalSelects(prefs = {}, orderNo = "") {
+  const meta = state.createMeta || {};
+  const last = { ...loadLastAdminCreate(), ...(prefs || {}) };
+
+  const $country = $("#ab_country").empty().append('<option value="">- Lựa chọn -</option>');
+  (meta.countries || []).forEach((c) => {
+    $country.append(
+      `<option value="${escapeHtml(c.id)}" data-symbol="${escapeHtml(c.currency_symbol || "$")}">${escapeHtml(c.name)}</option>`
+    );
+  });
+  const countryVal = last.country_id || ($("#dm_country").val() || "") || ((meta.countries || [])[0] && meta.countries[0].id) || "";
+  if (countryVal) $country.val(String(countryVal));
+
+  const $pay = $("#ab_payment").empty().append('<option value="">- Lựa chọn -</option>');
+  (meta.payments || []).forEach((p) => {
+    $pay.append(
+      `<option value="${escapeHtml(p.id)}" data-rate="${escapeHtml(p.currency_rate || 0)}">${escapeHtml(p.name)}</option>`
+    );
+  });
+  const site = adminBagItems().map((b) => b.website).find(Boolean);
+  const sug = site ? lookupWebsitePtttClient(site) : null;
+  const fromCartPttt = adminBagItems().map((b) => b.ptttId).find(Boolean);
+  // Map local PTTT id → Admin payment id nếu trùng tên
+  let mappedPayment = "";
+  if (fromCartPttt) {
+    const local = (state.settings.pttt || []).find(
+      (p) => String(p.id) === String(fromCartPttt) || String(p.name) === String(fromCartPttt)
+    );
+    if (local) {
+      const hit = (meta.payments || []).find(
+        (p) => String(p.name).toLowerCase() === String(local.name).toLowerCase()
+      );
+      if (hit) mappedPayment = String(hit.id);
+    }
+  }
+  const payVal =
+    last.payment_id ||
+    mappedPayment ||
+    (sug && sug.paymentId ? String(sug.paymentId) : "") ||
+    $("#dm_payment").val() ||
+    "";
+  if (payVal) $pay.val(String(payVal));
+
+  const $wh = $("#ab_warehouse").empty().append('<option value="">- Lựa chọn -</option>');
+  (meta.warehouses || []).forEach((w) => {
+    $wh.append(`<option value="${escapeHtml(w.id)}">${escapeHtml(w.name)}</option>`);
+  });
+  const whVal = last.warehouse_id || $("#dm_warehouse").val() || "";
+  if (whVal) $wh.val(String(whVal));
+
+  const $cb = $("#ab_web_cashback").empty().append('<option value="">- Lựa chọn -</option>');
+  (meta.web_cashbacks || []).forEach((w) => {
+    $cb.append(`<option value="${escapeHtml(w.id)}">${escapeHtml(w.name)}</option>`);
+  });
+  if (last.web_cashback_id) $cb.val(String(last.web_cashback_id));
+
+  const todayStr =
+    $("#dm_created_time").val() ||
+    (() => {
+      const d = new Date();
+      return `${String(d.getDate()).padStart(2, "0")}-${String(d.getMonth() + 1).padStart(2, "0")}-${d.getFullYear()}`;
+    })();
+  $("#ab_created_time").val(last.created_time || todayStr);
+  $("#ab_order_number").val(orderNo || last.order_number || "");
+  $("#ab_buyer").val(state.currentUser || "");
+  $("#ab_note").val(last.note || "");
+  $("#ab_ship").val(last.ship_fee != null ? last.ship_fee : 0);
+  $("#ab_discount").val(last.discount != null ? last.discount : 0);
+  $("#ab_cashback_rate").val(last.cashback_rate != null ? last.cashback_rate : 0);
+
+  const countryHit = (meta.countries || []).find((c) => String(c.id) === String($("#ab_country").val()));
+  const sym =
+    $("#ab_country option:selected").data("symbol") ||
+    (countryHit && countryHit.currency_symbol) ||
+    "$";
+  $(".ab-cur").text(sym);
+  calcBuyTotals();
+}
+
+function closeAdminBagModal() {
+  state.adminModalOpen = false;
+  $("#adminBagModal").prop("hidden", true);
+}
+
+async function openAdminBagModalForOrderNo(orderNo) {
+  const no = String(orderNo || "").trim();
+  if (!no) return toast("Sản phẩm chưa có Order number", { error: true, basso: true });
+
+  toast(`Đang gom SP cùng Order number ${no}…`);
+  try {
+    const res = await apiFetch("/api/basso/buy-list/add-scanned-group", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orderNo: no, replace: true }),
+    });
+    const data = await res.json();
+    if (!data.ok) return toast(data.error || "Không gom được sản phẩm", { error: true });
+    if (Array.isArray(data.items)) state.buyList = data.items;
+    state.adminModalOpen = true;
+    $("#adminBagModal").prop("hidden", false);
+    renderAdminModalBag();
+    fillAdminModalSelects({}, no);
+    if (typeof $.fn.datetimepicker === "function") {
+      const $t = $("#ab_created_time");
+      if (!$t.data("xdsoft_datetimepicker")) {
+        $t.datetimepicker({
+          format: "d-m-Y",
+          timepicker: false,
+          scrollInput: false,
+          dayOfWeekStart: 1,
+        });
+      }
+    }
+    const badId = adminBagItems().filter(
+      (it) => !/^\d+$/.test(String(it.bassoOrderId || it.orderId || ""))
+    );
+    if (badId.length) {
+      toast(
+        `${badId.length} SP thiếu ID Basso số — có thể không tạo Admin được. Làm mới rồi thử lại.`,
+        { error: true }
+      );
+    } else {
+      toast(data.message || `Đã gom ${data.added || 0} sản phẩm`, { success: true });
+    }
+  } catch (err) {
+    toast("Lỗi gom sản phẩm: " + (err.message || String(err)), { error: true });
+  }
 }
 
 function renderOrders() {
@@ -1791,9 +1978,17 @@ $(function () {
   $("#pane-scanned").on("click", ".js-scan-add-bag", async function (e) {
     e.preventDefault();
     const $tr = $(this).closest("tr");
-    await addScannedToBag([
-      { orderId: String($tr.attr("data-order-id") || ""), itemId: String($tr.attr("data-item-id") || "") },
-    ]);
+    const orderId = String($tr.attr("data-order-id") || "");
+    const itemId = String($tr.attr("data-item-id") || "");
+    const scanRow = (state.scannedItems || []).find(
+      (r) => String(r.orderId) === orderId && String(r.itemId) === itemId
+    );
+    const liveOrder = (state.orders || []).find((o) => String(o.id) === orderId);
+    const liveItem = liveOrder && (liveOrder.items || []).find((it) => String(it.id) === itemId);
+    const orderNo = String(
+      (scanRow && scanRow.orderNo) || (liveItem && liveItem.orderNo) || ""
+    ).trim();
+    await openAdminBagModalForOrderNo(orderNo);
   });
 
   $("#pane-scanned").on("click", ".js-save-admin-tracking", async function () {
@@ -1837,15 +2032,130 @@ $(function () {
   });
 
   $("#btnScanAddBag").on("click", async function () {
-    const pairs = [];
+    const orderNos = [];
     $("#scanBody .js-scan-check:checked").each(function () {
       const $tr = $(this).closest("tr");
-      pairs.push({
-        orderId: String($tr.attr("data-order-id") || ""),
-        itemId: String($tr.attr("data-item-id") || ""),
-      });
+      const orderId = String($tr.attr("data-order-id") || "");
+      const itemId = String($tr.attr("data-item-id") || "");
+      const scanRow = (state.scannedItems || []).find(
+        (r) => String(r.orderId) === orderId && String(r.itemId) === itemId
+      );
+      const liveOrder = (state.orders || []).find((o) => String(o.id) === orderId);
+      const liveItem = liveOrder && (liveOrder.items || []).find((it) => String(it.id) === itemId);
+      const orderNo = String(
+        (scanRow && scanRow.orderNo) || (liveItem && liveItem.orderNo) || ""
+      ).trim();
+      if (orderNo) orderNos.push(orderNo);
     });
-    await addScannedToBag(pairs);
+    if (!orderNos.length) return toast("Chọn sản phẩm rồi bấm Add bag", { error: true, basso: true });
+    const unique = [...new Set(orderNos)];
+    if (unique.length > 1) {
+      return toast("Chỉ chọn sản phẩm cùng một Order number", { error: true, basso: true });
+    }
+    await openAdminBagModalForOrderNo(unique[0]);
+  });
+
+  $("#adminBagModal").on("click", ".js-ab-close", function () {
+    closeAdminBagModal();
+  });
+  $(document).on("keydown.adminBagModal", function (e) {
+    if (e.key === "Escape" && state.adminModalOpen) closeAdminBagModal();
+  });
+  $("#adminBagModal").on("input change", "#ab_ship, #ab_discount", calcBuyTotals);
+  $("#adminBagModal").on("change", "#ab_country", function () {
+    const sym = $("#ab_country option:selected").data("symbol") || "$";
+    $(".ab-cur").text(sym);
+  });
+  $("#adminBagModal").on("click", ".js-buy-delete", async function (e) {
+    e.preventDefault();
+    const buyId = $(this).closest("tr").attr("data-buy-id");
+    if (!buyId) return;
+    try {
+      const res = await apiFetch(`/api/basso/buy-list/${encodeURIComponent(buyId)}`, { method: "DELETE" });
+      const data = await res.json();
+      if (Array.isArray(data.items)) state.buyList = data.items;
+      else state.buyList = (state.buyList || []).filter((x) => String(x.buyId) !== String(buyId));
+      renderBuyList();
+      renderAdminModalBag();
+    } catch (err) {
+      toast("Lỗi xóa: " + (err.message || String(err)), { error: true });
+    }
+  });
+  $("#adminBagModal").on("change", ".js-buy-price", async function () {
+    const buyId = $(this).closest("tr").attr("data-buy-id");
+    const price = Number($(this).val() || 0);
+    if (!buyId) return;
+    const row = (state.buyList || []).find((x) => String(x.buyId) === String(buyId));
+    if (row) row.price = price;
+    calcBuyTotals();
+    renderAdminModalBag();
+    try {
+      const res = await apiFetch(`/api/basso/buy-list/${encodeURIComponent(buyId)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ price }),
+      });
+      const data = await res.json();
+      if (Array.isArray(data.items)) state.buyList = data.items;
+    } catch {
+      /* ignore */
+    }
+  });
+
+  const abRequiredFields = [
+    "#ab_created_time",
+    "#ab_country",
+    "#ab_warehouse",
+    "#ab_order_number",
+    "#ab_buyer",
+    "#ab_payment",
+  ];
+  $("#adminBagModal").on("input change", abRequiredFields.join(","), function () {
+    $(this).toggleClass("validationElement", fieldIsEmpty($(this)));
+  });
+
+  $("#btnModalCreateAdmin").on("click", async function () {
+    if (!adminBagItems().length) return toast("Bạn chưa chọn sản phẩm");
+    if (!highlightMissingFields(abRequiredFields)) return;
+    const confirmed = await bassoConfirm(
+      "Xác nhận tạo đơn hàng",
+      "Các sản phẩm sẽ được đánh dấu là đã mua"
+    );
+    if (!confirmed) return;
+
+    const $btn = $(this);
+    const oldHtml = $btn.html();
+    $btn.prop("disabled", true).html('<i class="fa fa-spinner fa-spin"></i> Đang tạo…');
+    toast("Đang tạo đơn Admin trên Basso…");
+    const payload = collectAdminCreatePayload("ab");
+    try {
+      const res = await apiFetch("/api/basso/buy-list/create-admin-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        return toast(data.error || "Tạo đơn Admin thất bại", { error: true });
+      }
+      saveLastAdminCreate(payload);
+      if (Array.isArray(data.items)) state.buyList = data.items;
+      else state.buyList = (state.buyList || []).filter((x) => !isAdminBagItem(x));
+      const sheetErr = data.sheetCheck && data.sheetCheck.error;
+      toast(
+        sheetErr
+          ? `${data.message || "Tạo đơn hàng thành công"}. Excel: ${sheetErr}`
+          : data.message || "Tạo đơn hàng thành công",
+        sheetErr ? { error: true } : { success: true }
+      );
+      if (data.redirect_url) window.open(data.redirect_url, "_blank");
+      closeAdminBagModal();
+      await loadAll({ refresh: true });
+    } catch (err) {
+      toast("Lỗi tạo đơn Admin: " + (err.message || String(err)), { error: true });
+    } finally {
+      $btn.html(oldHtml).prop("disabled", adminBagItems().length === 0);
+    }
   });
 
   $("#btnSyncSheet").on("click", async function () {
@@ -2120,30 +2430,17 @@ $(function () {
     $btn.prop("disabled", true).html('<i class="fa fa-spinner fa-spin"></i> Đang tạo…');
     toast("Đang tạo đơn Admin trên Basso…");
     try {
-      const buyRate = Number($("#dm_payment option:selected").data("rate") || 0);
+      const payload = collectAdminCreatePayload("dm");
       const res = await apiFetch("/api/basso/buy-list/create-admin-order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          created_time: $("#dm_created_time").val(),
-          country_id: $("#dm_country").val(),
-          warehouse_id: $("#dm_warehouse").val(),
-          order_number: $("#dm_order_number").val(),
-          note: $("#dm_note").val(),
-          payment_id: $("#dm_payment").val(),
-          ship_fee: $("#dm_ship").val() || 0,
-          discount: $("#dm_discount").val() || 0,
-          buy_rate: buyRate,
-          cashback_rate: $("#dm_cashback_rate").val() || 0,
-          web_cashback_id: $("#dm_web_cashback").val() || "",
-          create_billing: true,
-          branch: "ha-noi",
-        }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (!data.ok) {
         return toast(data.error || "Tạo đơn Admin thất bại", { error: true });
       }
+      saveLastAdminCreate(payload);
       if (Array.isArray(data.items)) state.buyList = data.items;
       else state.buyList = (state.buyList || []).filter((x) => !isAdminBagItem(x));
       const sheetErr = data.sheetCheck && data.sheetCheck.error;

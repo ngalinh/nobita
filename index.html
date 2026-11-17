@@ -641,6 +641,155 @@
       </div>
     </div>
 
+    <!-- Popup tạo Admin từ Đơn gửi mua (giống tab Đang mua) -->
+    <div id="adminBagModal" class="admin-bag-modal" hidden>
+      <div class="admin-bag-modal-backdrop js-ab-close"></div>
+      <div class="admin-bag-modal-panel" role="dialog" aria-modal="true" aria-labelledby="adminBagModalTitle">
+        <div class="admin-bag-modal-head">
+          <h2 id="adminBagModalTitle">Tạo đơn Admin</h2>
+          <button type="button" class="admin-bag-modal-close js-ab-close" title="Đóng">&times;</button>
+        </div>
+        <div class="admin-bag-modal-body">
+          <div class="table-responsive">
+            <table class="table table-striped table-bordered mb-3" id="abBuyTable">
+              <thead>
+                <tr>
+                  <th width="50">STT</th>
+                  <th width="120">Mã ĐH</th>
+                  <th style="min-width: 220px" colspan="2">Sản phẩm</th>
+                  <th>Variant</th>
+                  <th width="50">SL</th>
+                  <th width="140">Giá mua</th>
+                  <th>Tổng giá mua</th>
+                  <th style="min-width: 140px">Order number</th>
+                  <th style="min-width: 160px">Tracking number</th>
+                  <th>Ghi chú</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="abBuyBody" class="text-center"></tbody>
+            </table>
+          </div>
+          <p class="text-center text-muted py-2" id="abBuyEmpty" hidden>Chưa có sản phẩm.</p>
+
+          <div class="row pb-2">
+            <div class="col-md-12 col-lg-6">
+              <table class="table border-vertical mb-0">
+                <tbody>
+                  <tr>
+                    <th class="text-right"><span class="text-danger">*</span> Thời gian order</th>
+                    <td><input type="text" class="form-control input-sm" id="ab_created_time" autocomplete="off" placeholder="dd-mm-yyyy" /></td>
+                  </tr>
+                  <tr>
+                    <th class="text-right"><span class="text-danger">*</span> Quốc gia</th>
+                    <td>
+                      <select class="form-control input-sm" id="ab_country">
+                        <option value="">- Lựa chọn -</option>
+                      </select>
+                    </td>
+                  </tr>
+                  <tr>
+                    <th class="text-right"><span class="text-danger">*</span> Warehouse</th>
+                    <td>
+                      <select class="form-control input-sm" id="ab_warehouse">
+                        <option value="">- Lựa chọn -</option>
+                      </select>
+                    </td>
+                  </tr>
+                  <tr>
+                    <th class="text-right"><span class="text-danger">*</span> Order number</th>
+                    <td><input type="text" class="form-control input-sm" id="ab_order_number" /></td>
+                  </tr>
+                  <tr>
+                    <th class="text-right"><span class="text-danger">*</span> Người tạo đơn</th>
+                    <td><input type="text" disabled class="form-control input-sm" id="ab_buyer" value="" /></td>
+                  </tr>
+                  <tr>
+                    <th class="text-right">Ghi chú</th>
+                    <td><input type="text" class="form-control input-sm" id="ab_note" /></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="col-md-12 col-lg-6">
+              <table class="table border-vertical mb-0">
+                <tbody>
+                  <tr>
+                    <th class="text-right"><span class="text-danger">*</span> PTTT</th>
+                    <td>
+                      <select class="form-control input-sm" id="ab_payment">
+                        <option value="">- Lựa chọn -</option>
+                      </select>
+                    </td>
+                  </tr>
+                  <tr>
+                    <th class="text-right">Tổng tiền hàng</th>
+                    <td>
+                      <div class="input-group">
+                        <div class="input-group-prepend"><span class="input-group-text text-sm ab-cur" style="width: 50px">$</span></div>
+                        <input type="text" class="form-control input-sm text-right arrow-none" id="ab_total" disabled />
+                      </div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <th class="text-right">Ship web</th>
+                    <td>
+                      <div class="input-group">
+                        <div class="input-group-prepend"><span class="input-group-text text-sm ab-cur" style="width: 50px">$</span></div>
+                        <input type="number" step="0.01" min="0" class="form-control input-sm text-right arrow-none" id="ab_ship" value="0" />
+                      </div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <th class="text-right">Giảm giá</th>
+                    <td>
+                      <div class="input-group">
+                        <div class="input-group-prepend"><span class="input-group-text text-sm ab-cur" style="width: 50px">$</span></div>
+                        <input type="number" step="0.01" min="0" class="form-control input-sm text-right arrow-none" id="ab_discount" value="0" />
+                      </div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <th class="text-right">Tổng tiền mua</th>
+                    <td>
+                      <div class="input-group">
+                        <div class="input-group-prepend"><span class="input-group-text text-sm ab-cur" style="width: 50px">$</span></div>
+                        <input type="text" disabled class="form-control input-sm text-right" id="ab_subtotal" />
+                      </div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <th class="text-right">Web Cashback</th>
+                    <td>
+                      <select class="form-control input-sm" id="ab_web_cashback">
+                        <option value="">- Lựa chọn -</option>
+                      </select>
+                    </td>
+                  </tr>
+                  <tr>
+                    <th class="text-right">% Cashback</th>
+                    <td>
+                      <div class="input-group">
+                        <div class="input-group-prepend"><span class="input-group-text text-sm">%</span></div>
+                        <input type="number" step="0.01" min="0" class="form-control input-sm text-right" id="ab_cashback_rate" value="0" style="min-width: 45px" />
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div class="admin-bag-modal-foot">
+          <button type="button" class="btn btn-light border js-ab-close">Đóng</button>
+          <button class="btn btn-success text-uppercase" type="button" id="btnModalCreateAdmin" disabled>
+            <i class="fa fa-check"></i>
+            Tạo đơn hàng
+          </button>
+        </div>
+      </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.4/dist/jquery.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="assets/vendor/select2/dist/js/select2.full.js"></script>

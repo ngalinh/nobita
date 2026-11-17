@@ -676,3 +676,74 @@ select.form-control.validationElement {
   background: #f05050;
   color: #fff;
 }
+
+.admin-bag-modal[hidden] {
+  display: none !important;
+}
+
+.admin-bag-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 10050;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 24px 12px;
+  overflow: auto;
+}
+
+.admin-bag-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 24, 36, 0.55);
+}
+
+.admin-bag-modal-panel {
+  position: relative;
+  z-index: 1;
+  width: min(1100px, 96vw);
+  max-height: calc(100vh - 48px);
+  overflow: auto;
+  background: #fff;
+  border-radius: 6px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.28);
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-bag-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid #dde6e9;
+}
+
+.admin-bag-modal-head h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.admin-bag-modal-close {
+  border: 0;
+  background: transparent;
+  font-size: 28px;
+  line-height: 1;
+  color: #888;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.admin-bag-modal-body {
+  padding: 16px 18px;
+  flex: 1;
+}
+
+.admin-bag-modal-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 12px 18px 16px;
+  border-top: 1px solid #dde6e9;
+}

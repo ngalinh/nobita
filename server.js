@@ -405,8 +405,11 @@ function snapshotScannedItem(order, item) {
   if (!item || !order || (!orderNo && !tracking)) return null;
   return {
     orderId: String(order.id || item.orderCode || item.orderId || ""),
+    bassoOrderId: String(order.bassoId || item.bassoOrderId || ""),
     itemId: String(item.id || item.itemId || ""),
     website: order.website || item.website || "",
+    brand: order.brand || item.brand || "",
+    currencySymbol: order.currencySymbol || item.currencySymbol || "$",
     ptttId: order.ptttId || item.ptttId || "",
     checkerUrl: item.checkerUrl || "",
     name: item.name || "",
@@ -416,6 +419,7 @@ function snapshotScannedItem(order, item) {
     color: item.color || "",
     qty: item.qty || 1,
     price: item.price || 0,
+    note: item.note || "",
     orderNo,
     tracking,
     syncedAt: item.syncedAt || "",
@@ -2220,6 +2224,92 @@ app.post("/api/basso/buy-list/add-item", async (req, res) => {
   buyList.push(toBuyItem(order, item, bag));
   writeBuyList(buyList);
   res.json({ ok: true, items: buyList, message: "Đã thêm sản phẩm" });
+});
+
+/** Gom toàn bộ SP Đơn gửi mua cùng Order number vào giỏ Đang mua (popup tạo Admin). */
+app.post("/api/basso/buy-list/add-scanned-group", async (req, res) => {
+  const orderNo = String((req.body && req.body.orderNo) || "").trim();
+  if (!orderNo) {
+    return res.status(400).json({ ok: false, error: "Thiếu Order number" });
+  }
+  const replace = req.body && req.body.replace === false ? false : true;
+  const live = await ordersForCart(req);
+  const liveByCode = new Map();
+  for (const order of live.orders || []) {
+    liveByCode.set(String(order.id), order);
+    if (order.bassoId) liveByCode.set(String(order.bassoId), order);
+  }
+
+  const scanned = readScannedItems().filter(
+    (row) =>
+      !scannedIsDone(row) &&
+      !row.adminOrderChecked &&
+      String(row.orderNo || "").trim() === orderNo
+  );
+  if (!scanned.length) {
+    return res.status(404).json({ ok: false, error: `Không có SP Order number ${orderNo} trong Đơn gửi mua` });
+  }
+
+  let buyList = readBuyList();
+  if (replace) {
+    buyList = buyList.filter((x) => String(x.bag || "") !== "dang_mua");
+  }
+
+  let added = 0;
+  let skipped = 0;
+  for (const row of scanned) {
+    if (buyList.some((x) => String(x.itemId) === String(row.itemId) && isAdminBagItem(x))) {
+      skipped += 1;
+      continue;
+    }
+    const liveOrder = liveByCode.get(String(row.orderId)) || liveByCode.get(String(row.bassoOrderId || ""));
+    const liveItem =
+      liveOrder && (liveOrder.items || []).find((it) => String(it.id) === String(row.itemId));
+    if (liveOrder && liveItem && !liveItem.adminOrderChecked) {
+      liveItem.orderNo = liveItem.orderNo || row.orderNo;
+      liveItem.tracking = liveItem.tracking || row.tracking;
+      liveItem.itemKey = liveItem.itemKey || row.itemKey;
+      liveItem.ptttId = liveItem.ptttId || row.ptttId;
+      liveItem.checkerUrl = liveItem.checkerUrl || row.checkerUrl;
+      buyList.push(toBuyItem(liveOrder, liveItem, "dang_mua"));
+    } else {
+      const shortId = makeShortNobitaId();
+      buyList.push({
+        buyId: shortId,
+        itemId: row.itemId,
+        orderId: row.orderId,
+        bassoOrderId: row.bassoOrderId || (liveOrder && liveOrder.bassoId) || "",
+        orderCode: row.orderId,
+        website: row.website || "",
+        brand: row.brand || (liveOrder && liveOrder.brand) || "",
+        currencySymbol: row.currencySymbol || "$",
+        ptttId: row.ptttId || "",
+        checkerUrl: row.checkerUrl || "",
+        name: row.name || "",
+        url: row.url || "",
+        image: row.image || "",
+        size: row.size || "",
+        color: row.color || "",
+        qty: Number(row.qty || 1),
+        price: Number(row.price || 0),
+        note: row.note || "",
+        orderNo: row.orderNo || orderNo,
+        tracking: row.tracking || "",
+        itemKey: row.itemKey || shortId,
+        bag: "dang_mua",
+      });
+    }
+    added += 1;
+  }
+  writeBuyList(buyList);
+  res.json({
+    ok: true,
+    items: buyList,
+    added,
+    skipped,
+    orderNo,
+    message: `Đã gom ${added} SP Order number ${orderNo} vào tạo Admin`,
+  });
 });
 
 app.post("/api/basso/buy-list/clear", (_req, res) => {
