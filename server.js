@@ -508,6 +508,22 @@ function dropScannedItem(orderId, itemId) {
   writeScannedItems(list);
 }
 
+/** Mã ĐH không còn trên Basso và chưa tạo Admin thì bỏ khỏi Đã quét. Đơn đã tạo Admin vẫn giữ để cập nhật tracking. */
+function dropScannedItemsGoneFromBasso(orders) {
+  const liveIds = new Set();
+  for (const order of orders || []) {
+    if (order && order.id) liveIds.add(String(order.id));
+    if (order && order.bassoId) liveIds.add(String(order.bassoId));
+  }
+  const list = readScannedItems();
+  const next = list.filter((row) => {
+    if (row && row.adminOrderChecked) return true;
+    return liveIds.has(String((row && row.orderId) || ""));
+  });
+  if (next.length !== list.length) writeScannedItems(next);
+  return list.length - next.length;
+}
+
 function sheetUrlClose(a, b) {
   const norm = (u) =>
     String(u || "")
@@ -1662,6 +1678,7 @@ async function syncOrderTrackingFromSheets({ orders, buyList, ptttList, source, 
     writeBuyList(buyList);
     rememberScannedItems(orders);
     syncScannedFromSheetRecords(allRecords);
+    if (source === "partner") dropScannedItemsGoneFromBasso(orders);
     return {
       ok: true,
       message:
@@ -1830,6 +1847,7 @@ app.get("/api/basso/orders", async (req, res) => {
   const buyList = readBuyList();
   const orders = live.orders || [];
   rememberScannedItems(orders);
+  if (live.source === "partner" && !live.error) dropScannedItemsGoneFromBasso(orders);
   const pic = ((live.meta && live.meta.pic) || [])
     .filter((p) => p && Number(p.user_id) !== 0)
     .map((p) => ({ id: String(p.user_id), name: String(p.name || "").trim() }))

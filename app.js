@@ -1937,7 +1937,11 @@ $(function () {
       return toast("Vui lòng điền đủ các trường *");
     }
     if (!$("#oi_created_time").val()) return toast("Vui lòng chọn Thời gian");
-    if (!confirm("Xác nhận gửi đơn hàng vào Excel / Google Sheet theo PTTT đã chọn?")) return;
+    const confirmed = await bassoConfirm(
+      "Xác nhận gửi đơn hàng",
+      "Đơn sẽ được gửi vào Excel theo PTTT đã chọn"
+    );
+    if (!confirmed) return;
 
     const $btn = $(this);
     const oldHtml = $btn.html();
