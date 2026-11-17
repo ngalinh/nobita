@@ -544,7 +544,6 @@ function syncScannedFromSheetRecords(records) {
   for (const rec of records || []) {
     const orderNo = String(rec.orderNo || "").trim();
     const tracking = String(rec.tracking || "").trim();
-    if (!orderNo && !tracking) continue;
     const sameOrder = list.filter(
       (row) => !scannedIsDone(row) && String(row.orderId) === String(rec.maDh || "")
     );
@@ -566,13 +565,18 @@ function syncScannedFromSheetRecords(records) {
     }
     if (!row && sameOrder.length === 1) row = sameOrder[0];
     if (!row) continue;
-    if (orderNo) row.orderNo = orderNo;
+    // Sheet trống Order # / Tracking thì xóa số cũ (vd test1112) trên Nobita
+    row.orderNo = orderNo;
     row.tracking = tracking;
     if (rec.itemKey && !row.itemKey) row.itemKey = rec.itemKey;
     row.syncedAt = new Date().toISOString();
     changed = true;
   }
-  if (changed) writeScannedItems(list);
+  const pruned = list.filter(
+    (row) => scannedIsDone(row) || String(row.orderNo || "").trim() || String(row.tracking || "").trim()
+  );
+  if (pruned.length !== list.length) changed = true;
+  if (changed) writeScannedItems(pruned);
 }
 
 function findOrderInList(orders, id) {
@@ -1587,8 +1591,8 @@ async function syncOrderTrackingFromSheets({ orders, buyList, ptttList, source, 
       const rowToken = `${rec.sheetTitle}:${rec.rowNumber}`;
       if (usedSheetRows.has(rowToken)) return false;
 
-      // Sheet là nguồn đúng: có Order # thì ghi đè; Tracking lấy đúng ô (kể cả trống) để không giữ test cũ
-      if (rec.orderNo) item.orderNo = rec.orderNo;
+      // Sheet là nguồn đúng — ô trống cũng ghi đè để xóa test1112 cũ
+      item.orderNo = String(rec.orderNo || "").trim();
       item.tracking = String(rec.tracking || "").trim();
       if (rec.itemKey && !item.itemKey) item.itemKey = rec.itemKey;
 
