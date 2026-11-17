@@ -320,7 +320,7 @@ function ptttSuggestHtml(order) {
       : state.websitePtttAdminCount
         ? "Chưa có đơn Admin gần đây cho website này"
         : "Chưa lấy được PTTT từ API Đơn Admin";
-    return `<span class="text-muted small" title="${escapeHtml(tip)}">—</span>`;
+    return `<span class="text-muted" title="${escapeHtml(tip)}">—</span>`;
   }
   const meta = order.ptttSuggestMeta || {};
   const tipParts = [];
@@ -330,8 +330,8 @@ function ptttSuggestHtml(order) {
     meta.source === "admin" ? "PTTT đơn Admin gần nhất cùng website" : "Gợi ý từ lần gửi Nobita"
   );
   return `
-    <span class="text-info" style="font-size:12px" title="${escapeHtml(tipParts.join(" · "))}">${escapeHtml(name)}</span>
-    ${meta.boughtDate ? `<div class="text-muted" style="font-size:10px;line-height:1.2">${escapeHtml(meta.boughtDate)}</div>` : ""}`;
+    <span class="text-info" title="${escapeHtml(tipParts.join(" · "))}">${escapeHtml(name)}</span>
+    ${meta.boughtDate ? `<div class="text-muted" style="font-size:12px;line-height:1.3">${escapeHtml(meta.boughtDate)}</div>` : ""}`;
 }
 
 function hasSelect2() {
@@ -384,8 +384,7 @@ function updateMeta() {
   };
   state.orders.forEach((o) => {
     if (!orderStillBuyable(o)) return;
-    if (o.status === "can_mua_order") c.can_mua_order++;
-    else if (o.status === "can_mua_co") c.can_mua_co++;
+    if (o.status === "can_mua_order" || o.status === "can_mua_co") c.can_mua_order++;
     else if (o.status === "can_xu_ly") c.can_xu_ly++;
   });
   // Mock: đếm thêm đơn Order/CO đã gán PIC = mình
@@ -399,18 +398,24 @@ function updateMeta() {
   const apiPending = state.pendingByTab && state.pendingByTab[state.status];
   if (
     state.source === "partner" &&
-    (state.status === "can_xu_ly" || state.status === "can_mua_order" || state.status === "can_mua_co") &&
+    (state.status === "can_xu_ly" || state.status === "can_mua_order") &&
     apiPending != null &&
     !Number.isNaN(Number(apiPending))
   ) {
-    pending = Number(apiPending);
+    // Đơn cần mua = order + CO
+    if (state.status === "can_mua_order") {
+      const co = Number(state.pendingByTab.can_mua_co);
+      pending = Number(apiPending) + (Number.isNaN(co) ? 0 : co);
+    } else {
+      pending = Number(apiPending);
+    }
   } else if (state.status === "can_xu_ly") {
     pending = state.orders
       .filter((o) => (state.source === "partner" ? o.status === "can_xu_ly" : isAssignedToCurrentUser(o)))
       .reduce((s, o) => s + Number(o.total || 0), 0);
-  } else if (state.status === "can_mua_order" || state.status === "can_mua_co") {
+  } else if (state.status === "can_mua_order") {
     pending = state.orders
-      .filter((o) => o.status === state.status)
+      .filter((o) => o.status === "can_mua_order" || o.status === "can_mua_co")
       .reduce((s, o) => s + Number(o.total || 0), 0);
   } else if (state.status === "dang_mua" || state.status === "gui_don") {
     const bag = state.status === "dang_mua" ? adminBagItems() : sendBagItems();
@@ -480,6 +485,8 @@ function filteredOrders() {
       } else if (!isAssignedToCurrentUser(o)) {
         return false;
       }
+    } else if (state.status === "can_mua_order") {
+      if (o.status !== "can_mua_order" && o.status !== "can_mua_co") return false;
     } else if (o.status !== state.status) {
       return false;
     }
@@ -598,21 +605,6 @@ function renderBuyList() {
   calcBuyTotals();
 }
 
-function orderSheetStatusHtml(order) {
-  const items = order.items || [];
-  const n = items.length;
-  if (!n) return '<span class="text-muted">—</span>';
-  const withOrder = items.filter((i) => String(i.orderNo || "").trim()).length;
-  const withTrack = items.filter((i) => String(i.tracking || "").trim()).length;
-  const orderCls = withOrder === 0 ? "is-empty" : withOrder === n ? "is-full" : "is-partial";
-  const trackCls = withTrack === 0 ? "is-empty" : withTrack === n ? "is-full" : "is-partial";
-  return `
-    <div class="sheet-status">
-      <span class="sheet-status-pill ${orderCls}" title="Số SP đã có Order #">Order# ${withOrder}/${n}</span>
-      <span class="sheet-status-pill ${trackCls}" title="Số SP đã có Tracking">Track ${withTrack}/${n}</span>
-    </div>`;
-}
-
 function renderOrders() {
   const all = filteredOrders();
   const pageSize = Number(state.pageSize) || 20;
@@ -641,7 +633,6 @@ function renderOrders() {
           <a href="javascript:" class="toggle-hit" onclick="toggle_row(this)">${escapeHtml(order.website)}</a>
           <p class="mb-0">${escapeHtml(formatRate(order.rate) || "")}</p>
         </td>
-        <td class="sheet-status-cell">${orderSheetStatusHtml(order)}</td>
         <td>
           <a href="javascript:" class="toggle-hit" onclick="toggle_row(this)">${escapeHtml(order.saleEnds || "—")}</a>
           ${order.isUrgentBuy ? `<div class="text-primary mb-0" style="font-size:13px">Mua gấp</div>` : ""}
@@ -663,7 +654,7 @@ function renderOrders() {
         </td>
       </tr>
       <tr class="tr-collapse">
-        <td colspan="12" class="pl-0 pr-0">
+        <td colspan="11" class="pl-0 pr-0">
           <div class="item-detail">
             <table class="table table-striped">
               <thead>

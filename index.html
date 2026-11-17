@@ -153,30 +153,26 @@
               <div role="tabpanel">
                 <ul class="nav nav-tabs" role="tablist" id="tabs">
                   <li class="nav-item">
-                    <a class="nav-link" href="#tab_need" data-toggle="tab" data-status="can_xu_ly"
-                      title="Đơn tab need_handle trên Basso (PIC = bạn)"
-                      >Cần Xử lý (<span data-count="can_xu_ly">0</span>)</a
-                    >
-                  </li>
-                  <li class="nav-item">
                     <a class="nav-link" href="#tab_report" data-toggle="tab" data-status="bao_cao"
                       >Báo cáo (<span data-count="bao_cao">0</span>)</a
                     >
                   </li>
                   <li class="nav-item">
-                    <a class="nav-link active" href="#tab_order" data-toggle="tab" data-status="can_mua_order"
-                      >Cần mua đơn order (<span data-count="can_mua_order">0</span>)</a
+                    <a class="nav-link" href="#tab_need" data-toggle="tab" data-status="can_xu_ly"
+                      title="Đơn tab need_handle trên Basso (PIC = bạn)"
+                      >Cần xử lý (<span data-count="can_xu_ly">0</span>)</a
                     >
                   </li>
                   <li class="nav-item">
-                    <a class="nav-link" href="#tab_co" data-toggle="tab" data-status="can_mua_co"
-                      >Cần mua đơn CO (<span data-count="can_mua_co">0</span>)</a
+                    <a class="nav-link active" href="#tab_order" data-toggle="tab" data-status="can_mua_order"
+                      title="Đơn cần mua (order + CO)"
+                      >Đơn cần mua (<span data-count="can_mua_order">0</span>)</a
                     >
                   </li>
                   <li class="nav-item">
                     <a class="nav-link" href="#tab_scanned" data-toggle="tab" data-status="da_quet"
                       title="SP đã có Order # hoặc Tracking sau Đồng bộ Sheet"
-                      >Đã quét (<span data-count="da_quet">0</span>)</a
+                      >Đơn gửi mua (<span data-count="da_quet">0</span>)</a
                     >
                   </li>
                   <li class="nav-item">
@@ -219,7 +215,6 @@
                           <th style="min-width: 120px">Khách hàng</th>
                           <th style="min-width: 100px">Tổng tiền</th>
                           <th style="min-width: 100px">Website</th>
-                          <th style="min-width: 120px">Order# / Tracking</th>
                           <th style="min-width: 110px">
                             <div class="co-table-sort-header">
                               <span>Sale ends</span>
@@ -232,7 +227,7 @@
                           <th style="min-width: 100px; max-width: 100px">Nhân viên</th>
                           <th style="min-width: 160px">Ghi chú</th>
                           <th style="min-width: 90px" width="90">Thao tác</th>
-                          <th style="min-width: 120px" title="PTTT lần gửi gần nhất cùng website (Đơn Admin)">Gợi ý</th>
+                          <th style="min-width: 140px" title="PTTT lần gửi gần nhất cùng website (Đơn Admin)">Gợi ý PTTT</th>
                           <th style="min-width: 100px" title="Người xử lý (PIC)">PIC</th>
                         </tr>
                       </thead>
@@ -279,7 +274,7 @@
                   <div class="tab-pane" id="pane-scanned" role="tabpanel" hidden>
                     <div class="d-flex flex-wrap align-items-center justify-content-between mb-2">
                       <p class="text-muted small mb-0 mr-2">
-                        Sản phẩm đã có Order # hoặc Tracking. Tạo đơn ở Đang mua thì món hết ở tab Cần mua, nhưng vẫn ở đây và checkbox Order number được tích. Khi Excel đã có Tracking, bấm Cập nhật. Món rời tab sau khi cập nhật thành công và checkbox Tracking được tích. Nếu mã ĐH không còn trên Basso và chưa tạo Admin, Làm mới sẽ xóa khỏi Đã quét.
+                        Sản phẩm đã có Order # hoặc Tracking. Tạo đơn ở Đang mua thì món hết ở tab Đơn cần mua, nhưng vẫn ở đây và checkbox Order number được tích. Khi Excel đã có Tracking, bấm Cập nhật. Món rời tab sau khi cập nhật thành công và checkbox Tracking được tích. Nếu mã ĐH không còn trên Basso và chưa tạo Admin, Làm mới sẽ xóa khỏi Đơn gửi mua.
                       </p>
                       <button type="button" class="btn btn-sm btn-info" id="btnScanAddBag" title="Gom các dòng đã chọn vào Đang mua">
                         Add bag
