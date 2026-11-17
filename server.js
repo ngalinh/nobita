@@ -1648,7 +1648,7 @@ async function syncOrderTrackingFromSheets({ orders, buyList, ptttList, source, 
           }
         }
 
-        // 2) Fallback: Mã ĐH + link + size/màu
+        // 2) Fallback: Mã ĐH + link + size/màu (thiếu Mã ĐH thì khớp theo link)
         if (!rec.itemsUrl) {
           skippedNoLink += 1;
           unmatched += 1;
@@ -1657,7 +1657,7 @@ async function syncOrderTrackingFromSheets({ orders, buyList, ptttList, source, 
 
         let applied = false;
         for (const order of orders) {
-          if (String(order.id) !== String(rec.maDh)) continue;
+          if (rec.maDh && String(order.id) !== String(rec.maDh)) continue;
           const candidates = (order.items || []).filter((item) => {
             const token = itemToken(item);
             if (token && usedItems.has(token)) return false;
@@ -1670,13 +1670,14 @@ async function syncOrderTrackingFromSheets({ orders, buyList, ptttList, source, 
           } else if (candidates.length === 1) {
             if (applyToItem(candidates[0], rec, "fallback", order.id)) applied = true;
           }
+          if (applied) break;
         }
 
         if (!applied) {
           const buyCandidates = buyList.filter((item) => {
             const token = itemToken(item);
             if (token && usedItems.has(token)) return false;
-            if (String(item.orderId || item.orderCode) !== String(rec.maDh)) return false;
+            if (rec.maDh && String(item.orderId || item.orderCode) !== String(rec.maDh)) return false;
             return urlsMatch(item.url, rec.itemsUrl) && variantMatch(item, rec.sizeColor);
           });
           if (buyCandidates.length >= 1) {
