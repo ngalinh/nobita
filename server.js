@@ -700,7 +700,7 @@ function writeBuyList(items) {
   fs.writeFileSync(BUY_LIST_FILE, JSON.stringify(items, null, 2), "utf8");
 }
 
-function toBuyItem(order, item) {
+function toBuyItem(order, item, bag = "") {
   const shortId = makeShortNobitaId();
   // Không tái dùng ID dài kiểu cũ (b-i1-…); chỉ giữ ID ngắn 6 ký tự
   const existing = String(item.itemKey || "").trim();
@@ -726,7 +726,25 @@ function toBuyItem(order, item) {
     orderNo: item.orderNo || "",
     tracking: item.tracking || "",
     itemKey,
+    bag: bag || "",
   };
+}
+
+function isSendBagItem(item) {
+  return String((item && item.bag) || "") !== "dang_mua";
+}
+
+function isAdminBagItem(item) {
+  const bag = String((item && item.bag) || "");
+  return bag === "dang_mua" || bag === "" || bag === "both";
+}
+
+function sendBagItems(list) {
+  return (list || []).filter(isSendBagItem);
+}
+
+function adminBagItems(list) {
+  return (list || []).filter(isAdminBagItem);
 }
 
 /** Gửi danh sách SP lên Sheet theo PTTT (dùng chung create-order + gửi đơn 1 dòng) */
@@ -1900,8 +1918,8 @@ app.get("/api/basso/orders", async (req, res) => {
       can_xu_ly: orders.filter((o) => o.status === "can_xu_ly").length,
       can_mua_order: orders.filter((o) => o.status === "can_mua_order").length,
       can_mua_co: orders.filter((o) => o.status === "can_mua_co").length,
-      gui_don: buyList.length,
-      dang_mua: buyList.length,
+      gui_don: sendBagItems(buyList).length,
+      dang_mua: adminBagItems(buyList).length,
     },
   });
 });
@@ -2106,6 +2124,7 @@ app.post("/api/basso/buy-list/add-all", async (req, res) => {
 app.post("/api/basso/buy-list/add-item", async (req, res) => {
   const orderId = String((req.body && req.body.orderId) || "");
   const itemId = String((req.body && req.body.itemId) || "");
+  const bag = String((req.body && req.body.bag) || "").trim();
   const live = await ordersForCart(req);
   const order = findOrderInList(live.orders, orderId);
   if (!order) return res.status(404).json({ ok: false, error: "Không tìm thấy đơn" });
@@ -2117,11 +2136,12 @@ app.post("/api/basso/buy-list/add-item", async (req, res) => {
   }
 
   const buyList = readBuyList();
-  if (buyList.some((x) => x.itemId === item.id)) {
+  const sameBag = bag === "dang_mua" ? adminBagItems(buyList) : sendBagItems(buyList);
+  if (sameBag.some((x) => String(x.itemId) === String(item.id))) {
     return res.json({ ok: false, error: "Sản phẩm đã có trong danh sách", items: buyList });
   }
-  if (buyList.length) {
-    const anchor = String(buyList[0].orderNo || "").trim();
+  if (bag === "dang_mua" && sameBag.length) {
+    const anchor = String(sameBag[0].orderNo || "").trim();
     const incoming = String(item.orderNo || "").trim();
     if (incoming !== anchor) {
       return res.status(400).json({
@@ -2134,7 +2154,7 @@ app.post("/api/basso/buy-list/add-item", async (req, res) => {
     }
   }
 
-  buyList.push(toBuyItem(order, item));
+  buyList.push(toBuyItem(order, item, bag));
   writeBuyList(buyList);
   res.json({ ok: true, items: buyList, message: "Đã thêm sản phẩm" });
 });
@@ -2170,7 +2190,8 @@ app.delete("/api/basso/buy-list/:buyId", (req, res) => {
 });
 
 app.post("/api/basso/buy-list/create-order", async (req, res) => {
-  const buyList = readBuyList();
+  const all = readBuyList();
+  const buyList = sendBagItems(all);
   if (!buyList.length) {
     return res.status(400).json({ ok: false, error: "Bạn chưa chọn sản phẩm" });
   }
@@ -2181,10 +2202,12 @@ app.post("/api/basso/buy-list/create-order", async (req, res) => {
     if (!result.ok) {
       return res.status(400).json(result);
     }
-    writeBuyList([]);
+    const remaining = all.filter((x) => !isSendBagItem(x));
+    writeBuyList(remaining);
     res.json({
       ...result,
       cleared: buyList.length,
+      items: remaining,
     });
   } catch (err) {
     res.status(500).json({
@@ -2239,7 +2262,8 @@ async function tickExcelChecks(groups) {
 
 /** Tạo đơn Admin trên Basso (POST /partner/createWebOrder) — tab Đang mua */
 app.post("/api/basso/buy-list/create-admin-order", async (req, res) => {
-  const buyList = readBuyList();
+  const all = readBuyList();
+  const buyList = adminBagItems(all);
   if (!buyList.length) {
     return res.status(400).json({ ok: false, error: "Bạn chưa chọn sản phẩm" });
   }
@@ -2361,13 +2385,15 @@ app.post("/api/basso/buy-list/create-admin-order", async (req, res) => {
       checkGroups.get(ptttId).push(sheetCheckItem(bi, { admin: true }));
     }
     const sheetCheck = await tickExcelChecks(checkGroups);
-    writeBuyList([]);
+    const remaining = all.filter((x) => !isAdminBagItem(x));
+    writeBuyList(remaining);
     res.json({
       ok: true,
       message: result.message || "Tạo đơn hàng thành công",
       web_order_id: result.web_order_id || result.id || null,
       redirect_url: result.redirect_url || null,
       cleared: buyList.length,
+      items: remaining,
       sheetCheck,
       data: result,
     });

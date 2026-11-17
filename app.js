@@ -210,7 +210,7 @@ function toast(msg, opts) {
   toast._t = setTimeout(() => (el.style.opacity = "0"), opts && opts.error ? 8000 : 2800);
 }
 
-function localBuyItem(order, item) {
+function localBuyItem(order, item, bag = "") {
   return {
     buyId: `local-${item.id}`,
     itemId: item.id,
@@ -232,7 +232,26 @@ function localBuyItem(order, item) {
     orderNo: item.orderNo || "",
     tracking: item.tracking || "",
     itemKey: item.itemKey || "",
+    bag: bag || "",
   };
+}
+
+/** Add bag từ Đã quét → chỉ Đang mua. Thêm từ Cần mua (bag trống) → cả hai tab. */
+function isSendBagItem(item) {
+  return String((item && item.bag) || "") !== "dang_mua";
+}
+
+function isAdminBagItem(item) {
+  const bag = String((item && item.bag) || "");
+  return bag === "dang_mua" || bag === "" || bag === "both";
+}
+
+function sendBagItems() {
+  return (state.buyList || []).filter(isSendBagItem);
+}
+
+function adminBagItems() {
+  return (state.buyList || []).filter(isAdminBagItem);
 }
 
 function refreshBagView() {
@@ -358,8 +377,8 @@ function updateMeta() {
     can_xu_ly: 0,
     can_mua_order: 0,
     can_mua_co: 0,
-    gui_don: state.buyList.length,
-    dang_mua: state.buyList.length,
+    gui_don: sendBagItems().length,
+    dang_mua: adminBagItems().length,
     bao_cao: overdue.reduce((s, r) => s + r.orderCount, 0),
     da_quet: scannedProductRows().length,
   };
@@ -394,10 +413,8 @@ function updateMeta() {
       .filter((o) => o.status === state.status)
       .reduce((s, o) => s + Number(o.total || 0), 0);
   } else if (state.status === "dang_mua" || state.status === "gui_don") {
-    pending = state.buyList.reduce(
-      (s, it) => s + Number(it.price || 0) * Number(it.qty || 1),
-      0
-    );
+    const bag = state.status === "dang_mua" ? adminBagItems() : sendBagItems();
+    pending = bag.reduce((s, it) => s + Number(it.price || 0) * Number(it.qty || 1), 0);
   } else if (state.status === "da_quet") {
     pending = scannedProductRows().reduce(
       (s, row) => s + Number(row.item.price || 0) * Number(row.item.qty || 1),
@@ -514,19 +531,22 @@ function itemRows(order) {
 }
 
 function calcBuyTotals() {
-  const goods = state.buyList.reduce((s, it) => s + Number(it.price || 0) * Number(it.qty || 1), 0);
+  const sendItems = sendBagItems();
+  const adminItems = adminBagItems();
+  const goodsSend = sendItems.reduce((s, it) => s + Number(it.price || 0) * Number(it.qty || 1), 0);
+  const goodsAdmin = adminItems.reduce((s, it) => s + Number(it.price || 0) * Number(it.qty || 1), 0);
   const ship = Number($("#oi_ship").val() || 0);
-  const sub = goods + ship;
-  $("#oi_total").val(money(goods));
+  const sub = goodsSend + ship;
+  $("#oi_total").val(money(goodsSend));
   $("#oi_subtotal").val(money(sub));
-  $("#btnCreateOrder").prop("disabled", state.buyList.length === 0);
+  $("#btnCreateOrder").prop("disabled", sendItems.length === 0);
 
   const shipDm = Number($("#dm_ship").val() || 0);
   const discDm = Number($("#dm_discount").val() || 0);
-  const subDm = goods - discDm + shipDm;
-  $("#dm_total").val(money(goods));
+  const subDm = goodsAdmin - discDm + shipDm;
+  $("#dm_total").val(money(goodsAdmin));
   $("#dm_subtotal").val(money(subDm));
-  $("#btnCreateAdminOrder").prop("disabled", state.buyList.length === 0);
+  $("#btnCreateAdminOrder").prop("disabled", adminItems.length === 0);
 }
 
 function buyListRowHtml(item, i, { admin } = {}) {
@@ -563,11 +583,15 @@ function buyListRowHtml(item, i, { admin } = {}) {
 function renderBuyList() {
   const $body = $("#buyBody").empty();
   const $bodyAdmin = $("#buyBodyAdmin").empty();
-  $("#buyEmpty").prop("hidden", state.buyList.length > 0);
-  $("#buyEmptyAdmin").prop("hidden", state.buyList.length > 0);
+  const sendItems = sendBagItems();
+  const adminItems = adminBagItems();
+  $("#buyEmpty").prop("hidden", sendItems.length > 0);
+  $("#buyEmptyAdmin").prop("hidden", adminItems.length > 0);
 
-  state.buyList.forEach((item, i) => {
+  sendItems.forEach((item, i) => {
     $body.append(buyListRowHtml(item, i, { admin: false }));
+  });
+  adminItems.forEach((item, i) => {
     $bodyAdmin.append(buyListRowHtml(item, i, { admin: true }));
   });
 
@@ -918,7 +942,7 @@ function renderScanned() {
 }
 
 function bagAnchorOrderNo() {
-  const first = state.buyList[0];
+  const first = adminBagItems()[0];
   return first ? String(first.orderNo || "").trim() : null;
 }
 
@@ -945,12 +969,12 @@ async function addScannedToBag(pairs) {
       blockedAdmin += 1;
       continue;
     }
-    if (state.buyList.some((x) => String(x.itemId) === String(item.id))) continue;
+    if (adminBagItems().some((x) => String(x.itemId) === String(item.id))) continue;
     if (orderNo !== anchor) {
       blockedOrder += 1;
       continue;
     }
-    state.buyList.push(localBuyItem(order, item));
+    state.buyList.push(localBuyItem(order, item, "dang_mua"));
     toSave.push(pair);
     added += 1;
   }
@@ -964,10 +988,10 @@ async function addScannedToBag(pairs) {
   }
   toast(
     blockedOrder
-      ? `Đã thêm ${added} sản phẩm. ${blockedOrder} sản phẩm khác Order number không được thêm`
+      ? `Đã thêm ${added} sản phẩm vào Đang mua. ${blockedOrder} sản phẩm khác Order number không được thêm`
       : added === 1
-        ? "Đã thêm sản phẩm"
-        : `Đã thêm ${added} sản phẩm`,
+        ? "Đã thêm sản phẩm vào Đang mua"
+        : `Đã thêm ${added} sản phẩm vào Đang mua`,
     { success: true }
   );
 
@@ -977,7 +1001,7 @@ async function addScannedToBag(pairs) {
       const res = await apiFetch("/api/basso/buy-list/add-item", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderId: pair.orderId, itemId: pair.itemId }),
+        body: JSON.stringify({ orderId: pair.orderId, itemId: pair.itemId, bag: "dang_mua" }),
       });
       const data = await res.json();
       if (Array.isArray(data.items)) lastItems = data.items;
@@ -1294,10 +1318,11 @@ function fillOrderFormSelects() {
       `<option value="${escapeHtml(p.id)}" title="${escapeHtml(p.sheetUrl || "")}">${escapeHtml(p.name)}</option>`
     );
   });
-  // Ưu tiên: đang chọn → PTTT từ SP trong giỏ → gợi ý website
-  const fromCart = (state.buyList || []).map((b) => b.ptttId).find(Boolean);
+  // Ưu tiên: đang chọn → PTTT từ SP trong giỏ Gửi đơn → gợi ý website
+  const sendItems = sendBagItems();
+  const fromCart = sendItems.map((b) => b.ptttId).find(Boolean);
   const fromSite = (() => {
-    const site = (state.buyList || []).map((b) => b.website).find(Boolean);
+    const site = sendItems.map((b) => b.website).find(Boolean);
     if (!site) return "";
     const sug = lookupWebsitePtttClient(site);
     return sug ? sug.ptttId : "";
@@ -1336,9 +1361,9 @@ function fillAdminFormSelects() {
       `<option value="${escapeHtml(p.id)}" data-rate="${escapeHtml(p.currency_rate || 0)}">${escapeHtml(p.name)}</option>`
     );
   });
-  // Gợi ý PTTT Admin theo website trong giỏ
+  // Gợi ý PTTT Admin theo website trong giỏ Đang mua
   const fromSitePayment = (() => {
-    const site = (state.buyList || []).map((b) => b.website).find(Boolean);
+    const site = adminBagItems().map((b) => b.website).find(Boolean);
     if (!site) return "";
     const sug = lookupWebsitePtttClient(site);
     return sug && sug.paymentId ? String(sug.paymentId) : "";
@@ -1363,9 +1388,10 @@ function fillAdminFormSelects() {
 }
 
 function updateAdminCurrencySymbol() {
+  const adminFirst = adminBagItems()[0];
   const sym =
     $("#dm_country option:selected").data("symbol") ||
-    (state.buyList[0] && state.buyList[0].currencySymbol) ||
+    (adminFirst && adminFirst.currencySymbol) ||
     "$";
   $(".dm-cur").text(sym);
 }
@@ -1932,7 +1958,7 @@ $(function () {
   $("#dm_country").on("change", updateAdminCurrencySymbol);
 
   $("#btnCreateOrder").on("click", async function () {
-    if (!state.buyList.length) return toast("Bạn chưa chọn sản phẩm");
+    if (!sendBagItems().length) return toast("Bạn chưa chọn sản phẩm");
     if (!$("#oi_warehouse").val() || !$("#oi_payment").val()) {
       return toast("Vui lòng điền đủ các trường *");
     }
@@ -1974,7 +2000,8 @@ $(function () {
         return toast(msg, { error: true });
       }
 
-      state.buyList = [];
+      if (Array.isArray(data.items)) state.buyList = data.items;
+      else state.buyList = (state.buyList || []).filter((x) => !isSendBagItem(x));
       if (data.websitePttt) state.websitePttt = data.websitePttt;
       toast(data.message || "Đã gửi đơn");
       if (data.sheet && data.sheet.sheetUrl) {
@@ -1994,7 +2021,7 @@ $(function () {
       );
     } finally {
       if (timer) clearTimeout(timer);
-      $btn.html(oldHtml).prop("disabled", state.buyList.length === 0);
+      $btn.html(oldHtml).prop("disabled", sendBagItems().length === 0);
     }
   });
 
@@ -2049,7 +2076,7 @@ $(function () {
   }
 
   $("#btnCreateAdminOrder").on("click", async function () {
-    if (!state.buyList.length) return toast("Bạn chưa chọn sản phẩm");
+    if (!adminBagItems().length) return toast("Bạn chưa chọn sản phẩm");
     if (!highlightMissingFields(adminRequiredFields)) return;
     const confirmed = await bassoConfirm(
       "Xác nhận tạo đơn hàng",
@@ -2086,7 +2113,8 @@ $(function () {
       if (!data.ok) {
         return toast(data.error || "Tạo đơn Admin thất bại", { error: true });
       }
-      state.buyList = [];
+      if (Array.isArray(data.items)) state.buyList = data.items;
+      else state.buyList = (state.buyList || []).filter((x) => !isAdminBagItem(x));
       const sheetErr = data.sheetCheck && data.sheetCheck.error;
       toast(
         sheetErr
@@ -2107,7 +2135,7 @@ $(function () {
     } catch (err) {
       toast("Lỗi tạo đơn Admin: " + (err.message || String(err)), { error: true });
     } finally {
-      $btn.html(oldHtml).prop("disabled", state.buyList.length === 0);
+      $btn.html(oldHtml).prop("disabled", adminBagItems().length === 0);
     }
   });
 
