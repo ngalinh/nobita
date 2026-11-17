@@ -58,6 +58,7 @@ const state = {
   authSource: "",
   picOptions: ["Lựa chọn", "Dzuong", "Thùy Linh", "Vinh", "Thuỷ", "Bình", "Tâm", "Thảo", "Vân"],
   source: "mock",
+  bassoSiteUrl: "https://basso.vn",
   pendingByTab: {},
   websitePttt: {},
   websitePtttSource: "",
@@ -903,6 +904,24 @@ function checkerCellHtml(item) {
   return `<a href="${escapeHtml(url)}" target="_blank" rel="noopener" class="text-info font-weight-bold js-open-checker" title="Mở file Checker (Sheet PTTT)">Checker</a>`;
 }
 
+function adminOrderDetailUrl(item) {
+  const direct = String((item && item.adminOrderUrl) || "").trim();
+  if (/^https?:\/\//i.test(direct)) return direct;
+  const id = String((item && item.adminWebOrderId) || "").trim();
+  if (!id) return "";
+  const base = String(state.bassoSiteUrl || "https://basso.vn").replace(/\/$/, "");
+  return `${base}/hethong/basso/web_order/detail/${encodeURIComponent(id)}`;
+}
+
+function scanOrderNumberHtml(item) {
+  const text = String((item && item.orderNo) || "").trim();
+  if (!text) return "";
+  const url =
+    item && item.adminOrderChecked ? adminOrderDetailUrl(item) : "";
+  if (!url) return escapeHtml(text);
+  return `<a href="${escapeHtml(url)}" target="_blank" rel="noopener" class="text-info font-weight-bold" title="Mở đơn Admin trên Basso">${escapeHtml(text)}</a>`;
+}
+
 function renderScanned() {
   const rows = scannedProductRows();
   const $body = $("#scanBody").empty();
@@ -928,8 +947,8 @@ function renderScanned() {
         <td class="text-left"><b>Size</b>: ${escapeHtml(item.size || "—")}<br /><b>Màu</b>: ${escapeHtml(item.color || "—")}</td>
         <td>$ ${money(item.price)}</td>
         <td class="text-center" style="word-break:break-all">
-          <div>${escapeHtml(item.orderNo || "")}</div>
-          <div class="mt-1">${scanTick(item.adminOrderChecked, item.adminOrderChecked ? "Đã tạo đơn Admin từ Đang mua" : "Tích xanh khi tạo đơn Admin từ Đang mua thành công")}</div>
+          <div>${scanOrderNumberHtml(item)}</div>
+          <div class="mt-1">${scanTick(item.adminOrderChecked, item.adminOrderChecked ? "Đã tạo đơn Admin từ Đang mua — bấm Order number để mở" : "Tích xanh khi tạo đơn Admin từ Đang mua thành công")}</div>
         </td>
         <td class="text-center" style="word-break:break-all">
           <div>${escapeHtml(item.tracking || "")}</div>
@@ -1569,6 +1588,7 @@ async function loadAll(opts = {}) {
   state.settings = settingsRes.settings || { pttt: [], warehouses: [] };
   state.reportReasons = (reasonsRes && reasonsRes.reasons) || {};
   state.source = ordersRes.source || "mock";
+  state.bassoSiteUrl = ordersRes.bassoSiteUrl || state.bassoSiteUrl || "https://basso.vn";
   state.pendingByTab = ordersRes.pendingByTab || {};
   state.websitePttt = ordersRes.websitePttt || {};
   state.websitePtttSource = ordersRes.websitePtttSource || "";

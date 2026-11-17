@@ -343,6 +343,7 @@ function applyItemOverlays(orders) {
       if (ov.syncedAt) item.syncedAt = ov.syncedAt;
       if (ov.adminOrderChecked) item.adminOrderChecked = true;
       if (ov.adminOrderNumber) item.adminOrderNumber = ov.adminOrderNumber;
+      if (ov.adminWebOrderId != null) item.adminWebOrderId = ov.adminWebOrderId;
       if (ov.adminTracking != null) item.adminTracking = ov.adminTracking;
       if (ov.adminTrackingChecked) item.adminTrackingChecked = true;
       if (ov.adminTrackingSheetChecked) item.adminTrackingSheetChecked = true;
@@ -421,10 +422,18 @@ function snapshotScannedItem(order, item) {
     itemKey: item.itemKey || "",
     adminOrderChecked: !!item.adminOrderChecked,
     adminOrderNumber: item.adminOrderNumber || "",
+    adminWebOrderId: item.adminWebOrderId || "",
     adminTracking: item.adminTracking || "",
     adminTrackingChecked: !!item.adminTrackingChecked,
     adminTrackingSheetChecked: !!item.adminTrackingSheetChecked,
   };
+}
+
+function adminWebOrderDetailUrl(baseUrl, webOrderId) {
+  const id = String(webOrderId || "").trim();
+  if (!id) return "";
+  const base = String(baseUrl || "https://basso.vn").trim().replace(/\/$/, "") || "https://basso.vn";
+  return `${base}/hethong/basso/web_order/detail/${encodeURIComponent(id)}`;
 }
 
 function rememberScannedItems(orders) {
@@ -452,6 +461,9 @@ function rememberScannedItems(orders) {
         tracking: snap.tracking || prev.tracking || "",
         adminOrderChecked: !!snap.adminOrderChecked,
         adminOrderNumber: snap.adminOrderChecked ? snap.adminOrderNumber || prev.adminOrderNumber || "" : "",
+        adminWebOrderId: snap.adminOrderChecked
+          ? snap.adminWebOrderId || prev.adminWebOrderId || ""
+          : "",
         syncedAt: snap.syncedAt || prev.syncedAt || "",
       };
       if (idx >= 0) list[idx] = next;
@@ -463,16 +475,35 @@ function rememberScannedItems(orders) {
   return list;
 }
 
-function listOpenScannedItems() {
-  return readScannedItems().filter((row) => !scannedIsDone(row) && (row.orderNo || row.tracking));
+function listOpenScannedItems(baseUrl) {
+  const overlays = readItemOverlays();
+  const site = String(baseUrl || "").trim().replace(/\/$/, "") || "https://basso.vn";
+  return readScannedItems()
+    .filter((row) => !scannedIsDone(row) && (row.orderNo || row.tracking))
+    .map((row) => {
+      const ov = overlays[itemOverlayKey(row.orderId, row.itemId)] || {};
+      const adminWebOrderId = String(row.adminWebOrderId || ov.adminWebOrderId || "").trim();
+      const adminOrderChecked = !!(row.adminOrderChecked || ov.adminOrderChecked);
+      return {
+        ...row,
+        adminOrderChecked,
+        adminOrderNumber: row.adminOrderNumber || ov.adminOrderNumber || "",
+        adminWebOrderId,
+        adminOrderUrl:
+          adminOrderChecked && adminWebOrderId
+            ? adminWebOrderDetailUrl(site, adminWebOrderId)
+            : "",
+      };
+    });
 }
 
-function markScannedAdminCreated(bi, orderNumber) {
+function markScannedAdminCreated(bi, orderNumber, webOrderId) {
   const orderId = String(bi.orderCode || bi.orderId || "");
   const itemId = String(bi.itemId || "");
   if (!orderId || !itemId) return;
   const list = readScannedItems();
   const idx = list.findIndex((row) => String(row.orderId) === orderId && String(row.itemId) === itemId);
+  const adminWebOrderId = String(webOrderId || "").trim();
   if (idx < 0) {
     if (!String(bi.orderNo || "").trim() && !String(bi.tracking || "").trim()) return;
     list.push({
@@ -494,6 +525,7 @@ function markScannedAdminCreated(bi, orderNumber) {
       itemKey: bi.itemKey || "",
       adminOrderChecked: true,
       adminOrderNumber: orderNumber || "",
+      adminWebOrderId,
       adminTracking: "",
       adminTrackingChecked: false,
       adminTrackingSheetChecked: false,
@@ -501,6 +533,7 @@ function markScannedAdminCreated(bi, orderNumber) {
   } else {
     list[idx].adminOrderChecked = true;
     list[idx].adminOrderNumber = orderNumber || list[idx].adminOrderNumber || "";
+    if (adminWebOrderId) list[idx].adminWebOrderId = adminWebOrderId;
   }
   writeScannedItems(list);
 }
@@ -1907,11 +1940,14 @@ app.get("/api/basso/orders", async (req, res) => {
   }
   const partnerBuyer = live.buyer || (live.meta && live.meta.buyer) || "";
   const displayBuyer = (sessionUser && sessionUser.name) || partnerBuyer || "";
+  const partnerCfg = readPartnerConfig(CONFIG_FILE);
+  const bassoSiteUrl = String(partnerCfg.baseUrl || "https://basso.vn").replace(/\/$/, "");
 
   res.json({
     ok: true,
     source: live.source || "mock",
     error: live.error || null,
+    bassoSiteUrl,
     buyer: displayBuyer,
     buyerUserId: live.buyerUserId || (live.meta && live.meta.buyer_user_id) || null,
     partnerBuyer,
@@ -1940,7 +1976,7 @@ app.get("/api/basso/orders", async (req, res) => {
       };
     })(),
     orders,
-    scannedItems: listOpenScannedItems(),
+    scannedItems: listOpenScannedItems(bassoSiteUrl),
     counts: {
       can_xu_ly: orders.filter((o) => o.status === "can_xu_ly").length,
       can_mua_order: orders.filter((o) => o.status === "can_mua_order").length,
@@ -2402,7 +2438,11 @@ app.post("/api/basso/buy-list/create-admin-order", async (req, res) => {
         adminOrderNumber: String(body.order_number || "").trim(),
         adminWebOrderId: result.web_order_id || result.id || "",
       };
-      markScannedAdminCreated(bi, String(body.order_number || "").trim());
+      markScannedAdminCreated(
+        bi,
+        String(body.order_number || "").trim(),
+        result.web_order_id || result.id || ""
+      );
     }
     writeItemOverlays(overlays);
     const checkGroups = new Map();
@@ -2414,11 +2454,16 @@ app.post("/api/basso/buy-list/create-admin-order", async (req, res) => {
     const sheetCheck = await tickExcelChecks(checkGroups);
     const remaining = all.filter((x) => !isAdminBagItem(x));
     writeBuyList(remaining);
+    const partnerCfg = readPartnerConfig(CONFIG_FILE);
+    const webOrderId = result.web_order_id || result.id || null;
+    const redirectUrl =
+      result.redirect_url ||
+      (webOrderId ? adminWebOrderDetailUrl(partnerCfg.baseUrl, webOrderId) : null);
     res.json({
       ok: true,
       message: result.message || "Tạo đơn hàng thành công",
-      web_order_id: result.web_order_id || result.id || null,
-      redirect_url: result.redirect_url || null,
+      web_order_id: webOrderId,
+      redirect_url: redirectUrl,
       cleared: buyList.length,
       items: remaining,
       sheetCheck,
