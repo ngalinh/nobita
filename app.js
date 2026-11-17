@@ -566,10 +566,11 @@ function calcBuyTotals() {
 }
 
 const LAST_ADMIN_CREATE_KEY = "nobita_last_admin_create";
+const LAST_SEND_KEY = "nobita_last_sheet_send";
 
-function loadLastAdminCreate() {
+function loadJsonLocal(key) {
   try {
-    const raw = localStorage.getItem(LAST_ADMIN_CREATE_KEY);
+    const raw = localStorage.getItem(key);
     const data = raw ? JSON.parse(raw) : null;
     return data && typeof data === "object" ? data : {};
   } catch {
@@ -577,26 +578,97 @@ function loadLastAdminCreate() {
   }
 }
 
-function saveLastAdminCreate(payload) {
+function saveJsonLocal(key, payload) {
   try {
-    localStorage.setItem(LAST_ADMIN_CREATE_KEY, JSON.stringify(payload || {}));
+    localStorage.setItem(key, JSON.stringify(payload || {}));
   } catch {
     /* ignore */
   }
 }
 
+function loadLastAdminCreate() {
+  return loadJsonLocal(LAST_ADMIN_CREATE_KEY);
+}
+
+function saveLastAdminCreate(payload) {
+  saveJsonLocal(LAST_ADMIN_CREATE_KEY, payload);
+}
+
+function loadLastSheetSend() {
+  return loadJsonLocal(LAST_SEND_KEY);
+}
+
+function saveLastSheetSend(payload) {
+  saveJsonLocal(LAST_SEND_KEY, payload);
+}
+
+function normName(s) {
+  return String(s || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+/** Khớp tên PTTT/warehouse giữa Excel local và list Admin Basso. */
+function matchMetaByName(list, name) {
+  const n = normName(name);
+  if (!n || !Array.isArray(list)) return null;
+  return (
+    list.find((x) => normName(x.name) === n) ||
+    list.find((x) => {
+      const xn = normName(x.name);
+      return xn && (xn.includes(n) || n.includes(xn));
+    }) ||
+    null
+  );
+}
+
+function findLocalPttt(ptttIdOrName, checkerUrl) {
+  const list = state.settings.pttt || [];
+  const key = String(ptttIdOrName || "").trim();
+  if (key) {
+    const hit = list.find((p) => String(p.id) === key || normName(p.name) === normName(key));
+    if (hit) return hit;
+  }
+  const url = String(checkerUrl || "").trim();
+  if (url) {
+    const hit = list.find((p) => {
+      const u = String(p.sheetUrl || "").trim();
+      if (!u) return false;
+      return u === url || u.includes(url) || url.includes(u);
+    });
+    if (hit) return hit;
+  }
+  return null;
+}
+
+/** PTTT từ file Excel mà SP đang nằm (ưu tiên cao nhất). */
+function resolveBagLocalPttt(items) {
+  for (const it of items || []) {
+    const local = findLocalPttt(it.ptttId || it.ptttName, it.checkerUrl);
+    if (local) return local;
+  }
+  return null;
+}
+
 function collectAdminCreatePayload(prefix) {
   const p = prefix === "ab" ? "ab" : "dm";
+  const $pay = $(`#${p}_payment option:selected`);
+  const $wh = $(`#${p}_warehouse option:selected`);
   return {
     created_time: $(`#${p}_created_time`).val(),
     country_id: $(`#${p}_country`).val(),
     warehouse_id: $(`#${p}_warehouse`).val(),
+    warehouse_name: String($wh.text() || "").replace(/^[-—]\s*Lựa chọn\s*[-—]?$/i, "").trim(),
     order_number: $(`#${p}_order_number`).val(),
     note: $(`#${p}_note`).val(),
     payment_id: $(`#${p}_payment`).val(),
+    payment_name: String($pay.text() || "").replace(/^[-—]\s*Lựa chọn\s*[-—]?$/i, "").trim(),
     ship_fee: $(`#${p}_ship`).val() || 0,
     discount: $(`#${p}_discount`).val() || 0,
-    buy_rate: Number($(`#${p}_payment option:selected`).data("rate") || 0),
+    buy_rate: Number($pay.data("rate") || 0),
     cashback_rate: $(`#${p}_cashback_rate`).val() || 0,
     web_cashback_id: $(`#${p}_web_cashback`).val() || "",
     create_billing: true,
@@ -666,7 +738,10 @@ function renderBuyList() {
 
 function fillAdminModalSelects(prefs = {}, orderNo = "") {
   const meta = state.createMeta || {};
-  const last = { ...loadLastAdminCreate(), ...(prefs || {}) };
+  const lastAdmin = loadLastAdminCreate();
+  const lastSend = loadLastSheetSend();
+  const last = { ...lastAdmin, ...(prefs || {}) };
+  const bagItems = adminBagItems();
 
   const $country = $("#ab_country").empty().append('<option value="">- Lựa chọn -</option>');
   (meta.countries || []).forEach((c) => {
@@ -674,7 +749,8 @@ function fillAdminModalSelects(prefs = {}, orderNo = "") {
       `<option value="${escapeHtml(c.id)}" data-symbol="${escapeHtml(c.currency_symbol || "$")}">${escapeHtml(c.name)}</option>`
     );
   });
-  const countryVal = last.country_id || ($("#dm_country").val() || "") || ((meta.countries || [])[0] && meta.countries[0].id) || "";
+  const countryVal =
+    last.country_id || ($("#dm_country").val() || "") || ((meta.countries || [])[0] && meta.countries[0].id) || "";
   if (countryVal) $country.val(String(countryVal));
 
   const $pay = $("#ab_payment").empty().append('<option value="">- Lựa chọn -</option>');
@@ -683,36 +759,85 @@ function fillAdminModalSelects(prefs = {}, orderNo = "") {
       `<option value="${escapeHtml(p.id)}" data-rate="${escapeHtml(p.currency_rate || 0)}">${escapeHtml(p.name)}</option>`
     );
   });
-  const site = adminBagItems().map((b) => b.website).find(Boolean);
-  const sug = site ? lookupWebsitePtttClient(site) : null;
-  const fromCartPttt = adminBagItems().map((b) => b.ptttId).find(Boolean);
-  // Map local PTTT id → Admin payment id nếu trùng tên
-  let mappedPayment = "";
-  if (fromCartPttt) {
-    const local = (state.settings.pttt || []).find(
-      (p) => String(p.id) === String(fromCartPttt) || String(p.name) === String(fromCartPttt)
-    );
-    if (local) {
-      const hit = (meta.payments || []).find(
-        (p) => String(p.name).toLowerCase() === String(local.name).toLowerCase()
-      );
-      if (hit) mappedPayment = String(hit.id);
+
+  // 1) File Excel SP đang nằm (vd Nguyễn Công Phước) → PTTT cùng tên
+  const filePttt = resolveBagLocalPttt(bagItems);
+  let payVal = "";
+  if (filePttt) {
+    const hit = matchMetaByName(meta.payments || [], filePttt.name);
+    if (hit) payVal = String(hit.id);
+  }
+  // 2) Lần Gửi đơn Excel trước
+  if (!payVal && lastSend.pttt_name) {
+    const hit = matchMetaByName(meta.payments || [], lastSend.pttt_name);
+    if (hit) payVal = String(hit.id);
+  }
+  // 3) Gợi ý theo website (tên PTTT / paymentId Admin)
+  if (!payVal) {
+    const site = bagItems.map((b) => b.website).find(Boolean);
+    const sug = site ? lookupWebsitePtttClient(site) : null;
+    if (sug) {
+      if (sug.ptttName) {
+        const hit = matchMetaByName(meta.payments || [], sug.ptttName);
+        if (hit) payVal = String(hit.id);
+      }
+      if (!payVal && sug.paymentId) payVal = String(sug.paymentId);
+      if (!payVal && sug.ptttId) {
+        const local = findLocalPttt(sug.ptttId);
+        const hit = local ? matchMetaByName(meta.payments || [], local.name) : null;
+        if (hit) payVal = String(hit.id);
+      }
     }
   }
-  const payVal =
-    last.payment_id ||
-    mappedPayment ||
-    (sug && sug.paymentId ? String(sug.paymentId) : "") ||
-    $("#dm_payment").val() ||
-    "";
-  if (payVal) $pay.val(String(payVal));
+  // 4) Lần tạo Admin trước (theo tên rồi mới id)
+  if (!payVal && last.payment_name) {
+    const hit = matchMetaByName(meta.payments || [], last.payment_name);
+    if (hit) payVal = String(hit.id);
+  }
+  if (!payVal && last.payment_id) {
+    const exists = (meta.payments || []).some((p) => String(p.id) === String(last.payment_id));
+    if (exists) payVal = String(last.payment_id);
+  }
+  if (!payVal && $("#dm_payment").val()) payVal = String($("#dm_payment").val());
+  if (payVal) $pay.val(payVal);
 
   const $wh = $("#ab_warehouse").empty().append('<option value="">- Lựa chọn -</option>');
   (meta.warehouses || []).forEach((w) => {
     $wh.append(`<option value="${escapeHtml(w.id)}">${escapeHtml(w.name)}</option>`);
   });
-  const whVal = last.warehouse_id || $("#dm_warehouse").val() || "";
-  if (whVal) $wh.val(String(whVal));
+
+  // Warehouse: lần Gửi đơn → lần tạo Admin → trùng tên file PTTT (nếu có trong list) → tab Đang mua
+  let whVal = "";
+  const whNameCandidates = [
+    lastSend.warehouse_name,
+    last.warehouse_name,
+    (() => {
+      const id = lastSend.warehouse_id || "";
+      const local = (state.settings.warehouses || []).find((w) => String(w.id) === String(id));
+      return local ? local.name : "";
+    })(),
+    filePttt ? filePttt.name : "",
+    String($("#dm_warehouse option:selected").text() || "")
+      .replace(/^[-—]\s*Lựa chọn\s*[-—]?$/i, "")
+      .trim(),
+  ].filter(Boolean);
+  for (const name of whNameCandidates) {
+    const hit = matchMetaByName(meta.warehouses || [], name);
+    if (hit) {
+      whVal = String(hit.id);
+      break;
+    }
+  }
+  if (!whVal && last.warehouse_id) {
+    const exists = (meta.warehouses || []).some((w) => String(w.id) === String(last.warehouse_id));
+    if (exists) whVal = String(last.warehouse_id);
+  }
+  if (!whVal && $("#dm_warehouse").val()) {
+    const dmId = $("#dm_warehouse").val();
+    const exists = (meta.warehouses || []).some((w) => String(w.id) === String(dmId));
+    if (exists) whVal = String(dmId);
+  }
+  if (whVal) $wh.val(whVal);
 
   const $cb = $("#ab_web_cashback").empty().append('<option value="">- Lựa chọn -</option>');
   (meta.web_cashbacks || []).forEach((w) => {
@@ -730,7 +855,8 @@ function fillAdminModalSelects(prefs = {}, orderNo = "") {
   $("#ab_order_number").val(orderNo || last.order_number || "");
   $("#ab_buyer").val(state.currentUser || "");
   $("#ab_note").val(last.note || "");
-  $("#ab_ship").val(last.ship_fee != null ? last.ship_fee : 0);
+  const shipPref = lastSend.ship_fee != null ? lastSend.ship_fee : last.ship_fee;
+  $("#ab_ship").val(shipPref != null ? shipPref : 0);
   $("#ab_discount").val(last.discount != null ? last.discount : 0);
   $("#ab_cashback_rate").val(last.cashback_rate != null ? last.cashback_rate : 0);
 
@@ -2341,6 +2467,21 @@ $(function () {
         return toast(msg, { error: true });
       }
 
+      saveLastSheetSend({
+        warehouse_id: $("#oi_warehouse").val() || "",
+        warehouse_name: String($("#oi_warehouse option:selected").text() || "")
+          .replace(/^[-—]\s*Lựa chọn\s*[-—]?$/i, "")
+          .trim(),
+        pttt_id: $("#oi_payment").val() || "",
+        pttt_name:
+          data.ptttName ||
+          String($("#oi_payment option:selected").text() || "")
+            .replace(/^[-—]\s*Lựa chọn\s*[-—]?$/i, "")
+            .trim(),
+        ship_fee: $("#oi_ship").val() || 0,
+        at: new Date().toISOString(),
+      });
+
       if (Array.isArray(data.items)) state.buyList = data.items;
       else state.buyList = (state.buyList || []).filter((x) => !isSendBagItem(x));
       if (data.websitePttt) state.websitePttt = data.websitePttt;
@@ -2466,6 +2607,7 @@ $(function () {
       $btn.html(oldHtml).prop("disabled", adminBagItems().length === 0);
     }
   });
+
 
   $("#btnAddPttt").on("click", function () {
     state.settings.pttt = collectSettingsFromForm().pttt;

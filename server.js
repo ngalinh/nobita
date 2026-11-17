@@ -339,6 +339,7 @@ function applyItemOverlays(orders) {
       if (ov.tracking != null) item.tracking = ov.tracking;
       if (ov.itemKey != null) item.itemKey = ov.itemKey;
       if (ov.ptttId != null) item.ptttId = ov.ptttId;
+      if (ov.ptttName != null) item.ptttName = ov.ptttName;
       if (ov.checkerUrl != null) item.checkerUrl = ov.checkerUrl;
       if (ov.syncedAt) item.syncedAt = ov.syncedAt;
       if (ov.adminOrderChecked) item.adminOrderChecked = true;
@@ -411,6 +412,7 @@ function snapshotScannedItem(order, item) {
     brand: order.brand || item.brand || "",
     currencySymbol: order.currencySymbol || item.currencySymbol || "$",
     ptttId: order.ptttId || item.ptttId || "",
+    ptttName: item.ptttName || order.ptttSuggestName || "",
     checkerUrl: item.checkerUrl || "",
     name: item.name || "",
     url: item.url || "",
@@ -611,6 +613,7 @@ function syncScannedFromSheetRecords(records) {
     row.tracking = tracking;
     if (rec.itemKey && !row.itemKey) row.itemKey = rec.itemKey;
     if (rec.ptttId) row.ptttId = rec.ptttId;
+    if (rec.ptttName) row.ptttName = rec.ptttName;
     if (rec.checkerUrl) row.checkerUrl = rec.checkerUrl;
     row.syncedAt = new Date().toISOString();
     changed = true;
@@ -768,7 +771,9 @@ function toBuyItem(order, item, bag = "") {
     website: order.website || "",
     brand: order.brand || "",
     currencySymbol: order.currencySymbol || "$",
-    ptttId: order.ptttId || order.ptttSuggestId || "",
+    ptttId: item.ptttId || order.ptttId || order.ptttSuggestId || "",
+    ptttName: item.ptttName || order.ptttSuggestName || "",
+    checkerUrl: item.checkerUrl || "",
     name: item.name,
     url: item.url || "",
     image: item.image || "",
@@ -1639,6 +1644,7 @@ async function syncOrderTrackingFromSheets({ orders, buyList, ptttList, source, 
       item.tracking = String(rec.tracking || "").trim();
       if (rec.itemKey && !item.itemKey) item.itemKey = rec.itemKey;
       if (rec.ptttId) item.ptttId = rec.ptttId;
+      if (rec.ptttName) item.ptttName = rec.ptttName;
       if (rec.checkerUrl) item.checkerUrl = rec.checkerUrl;
 
       if (token) usedItems.add(token);
@@ -1655,6 +1661,7 @@ async function syncOrderTrackingFromSheets({ orders, buyList, ptttList, source, 
           tracking: item.tracking || "",
           itemKey: item.itemKey || "",
           ptttId: item.ptttId || "",
+          ptttName: item.ptttName || "",
           checkerUrl: item.checkerUrl || "",
           syncedAt: new Date().toISOString(),
         };
@@ -1698,6 +1705,7 @@ async function syncOrderTrackingFromSheets({ orders, buyList, ptttList, source, 
       });
       for (const rec of pulled.records) {
         rec.ptttId = pttt.id || "";
+        rec.ptttName = pttt.name || "";
         rec.checkerUrl = String(pttt.sheetUrl || "").trim();
       }
       allRecords.push(...pulled.records);
@@ -2269,9 +2277,14 @@ app.post("/api/basso/buy-list/add-scanned-group", async (req, res) => {
       liveItem.orderNo = liveItem.orderNo || row.orderNo;
       liveItem.tracking = liveItem.tracking || row.tracking;
       liveItem.itemKey = liveItem.itemKey || row.itemKey;
-      liveItem.ptttId = liveItem.ptttId || row.ptttId;
-      liveItem.checkerUrl = liveItem.checkerUrl || row.checkerUrl;
-      buyList.push(toBuyItem(liveOrder, liveItem, "dang_mua"));
+      liveItem.ptttId = row.ptttId || liveItem.ptttId || "";
+      liveItem.ptttName = row.ptttName || liveItem.ptttName || "";
+      liveItem.checkerUrl = row.checkerUrl || liveItem.checkerUrl || "";
+      const bi = toBuyItem(liveOrder, liveItem, "dang_mua");
+      bi.ptttId = row.ptttId || bi.ptttId || "";
+      bi.ptttName = row.ptttName || bi.ptttName || "";
+      bi.checkerUrl = row.checkerUrl || bi.checkerUrl || "";
+      buyList.push(bi);
     } else {
       const shortId = makeShortNobitaId();
       buyList.push({
@@ -2284,6 +2297,7 @@ app.post("/api/basso/buy-list/add-scanned-group", async (req, res) => {
         brand: row.brand || (liveOrder && liveOrder.brand) || "",
         currencySymbol: row.currencySymbol || "$",
         ptttId: row.ptttId || "",
+        ptttName: row.ptttName || "",
         checkerUrl: row.checkerUrl || "",
         name: row.name || "",
         url: row.url || "",
