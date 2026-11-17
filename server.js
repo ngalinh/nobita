@@ -555,12 +555,19 @@ function syncScannedFromSheetRecords(records) {
         list.find((item) => item.itemKey && String(item.itemKey) === String(rec.itemKey) && !scannedIsDone(item));
     }
     if (!row && rec.itemsUrl) {
-      row = sameOrder.find((item) => sheetUrlClose(item.url, rec.itemsUrl));
+      row =
+        sameOrder.find((item) => sheetUrlClose(item.url, rec.itemsUrl)) ||
+        list.find(
+          (item) =>
+            !scannedIsDone(item) &&
+            sheetUrlClose(item.url, rec.itemsUrl) &&
+            (!rec.maDh || String(item.orderId) === String(rec.maDh))
+        );
     }
     if (!row && sameOrder.length === 1) row = sameOrder[0];
     if (!row) continue;
     if (orderNo) row.orderNo = orderNo;
-    if (tracking) row.tracking = tracking;
+    row.tracking = tracking;
     if (rec.itemKey && !row.itemKey) row.itemKey = rec.itemKey;
     row.syncedAt = new Date().toISOString();
     changed = true;
@@ -1580,8 +1587,9 @@ async function syncOrderTrackingFromSheets({ orders, buyList, ptttList, source, 
       const rowToken = `${rec.sheetTitle}:${rec.rowNumber}`;
       if (usedSheetRows.has(rowToken)) return false;
 
+      // Sheet là nguồn đúng: có Order # thì ghi đè; Tracking lấy đúng ô (kể cả trống) để không giữ test cũ
       if (rec.orderNo) item.orderNo = rec.orderNo;
-      if (rec.tracking) item.tracking = rec.tracking;
+      item.tracking = String(rec.tracking || "").trim();
       if (rec.itemKey && !item.itemKey) item.itemKey = rec.itemKey;
 
       if (token) usedItems.add(token);
