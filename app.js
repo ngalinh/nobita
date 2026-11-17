@@ -883,6 +883,26 @@ function scanTick(checked, title) {
   return `<i class="far fa-square text-muted" style="font-size:16px" title="${tip}"></i>`;
 }
 
+function checkerSheetUrl(item) {
+  const direct = String((item && item.checkerUrl) || "").trim();
+  if (/^https?:\/\//i.test(direct)) return direct;
+  const ptttId = String((item && item.ptttId) || "").trim();
+  if (!ptttId) return "";
+  const pttt = (state.settings.pttt || []).find(
+    (p) => String(p.id) === ptttId || String(p.name) === ptttId
+  );
+  const url = pttt ? String(pttt.sheetUrl || "").trim() : "";
+  return /^https?:\/\//i.test(url) ? url : "";
+}
+
+function checkerCellHtml(item) {
+  const url = checkerSheetUrl(item);
+  if (!url) {
+    return `<span class="text-muted" title="Chưa gắn Sheet PTTT — Đồng bộ Sheet để lấy file">—</span>`;
+  }
+  return `<a href="${escapeHtml(url)}" target="_blank" rel="noopener" class="text-info font-weight-bold js-open-checker" title="Mở file Checker (Sheet PTTT)">Checker</a>`;
+}
+
 function renderScanned() {
   const rows = scannedProductRows();
   const $body = $("#scanBody").empty();
@@ -892,10 +912,11 @@ function renderScanned() {
     const order = row.order;
     const img = item.image || "/assets/img/dummy.png";
     $body.append(`
-      <tr data-order-id="${escapeHtml(order.id)}" data-item-id="${escapeHtml(item.id)}" data-sheet-tracking="${escapeHtml(item.tracking || "")}" data-item-key="${escapeHtml(item.itemKey || "")}" data-url="${escapeHtml(item.url || "")}" data-size="${escapeHtml(item.size || "")}" data-color="${escapeHtml(item.color || "")}" data-pttt-id="${escapeHtml(item.ptttId || "")}">
+      <tr data-order-id="${escapeHtml(order.id)}" data-item-id="${escapeHtml(item.id)}" data-sheet-tracking="${escapeHtml(item.tracking || "")}" data-item-key="${escapeHtml(item.itemKey || "")}" data-url="${escapeHtml(item.url || "")}" data-size="${escapeHtml(item.size || "")}" data-color="${escapeHtml(item.color || "")}" data-pttt-id="${escapeHtml(item.ptttId || "")}" data-checker-url="${escapeHtml(item.checkerUrl || "")}">
         <td><input type="checkbox" class="js-scan-check" /></td>
         <td>${i + 1}</td>
         <td>${escapeHtml(formatScanTime(item.syncedAt, order))}</td>
+        <td>${checkerCellHtml(item)}</td>
         <td>${escapeHtml(order.id)}</td>
         <td>${escapeHtml(order.website || "—")}</td>
         <td class="text-left">
@@ -905,7 +926,6 @@ function renderScanned() {
           </div>
         </td>
         <td class="text-left"><b>Size</b>: ${escapeHtml(item.size || "—")}<br /><b>Màu</b>: ${escapeHtml(item.color || "—")}</td>
-        <td>${item.qty || 1}</td>
         <td>$ ${money(item.price)}</td>
         <td class="text-center" style="word-break:break-all">
           <div>${escapeHtml(item.orderNo || "")}</div>

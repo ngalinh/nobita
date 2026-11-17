@@ -338,6 +338,8 @@ function applyItemOverlays(orders) {
       if (ov.orderNo != null) item.orderNo = ov.orderNo;
       if (ov.tracking != null) item.tracking = ov.tracking;
       if (ov.itemKey != null) item.itemKey = ov.itemKey;
+      if (ov.ptttId != null) item.ptttId = ov.ptttId;
+      if (ov.checkerUrl != null) item.checkerUrl = ov.checkerUrl;
       if (ov.syncedAt) item.syncedAt = ov.syncedAt;
       if (ov.adminOrderChecked) item.adminOrderChecked = true;
       if (ov.adminOrderNumber) item.adminOrderNumber = ov.adminOrderNumber;
@@ -405,6 +407,7 @@ function snapshotScannedItem(order, item) {
     itemId: String(item.id || item.itemId || ""),
     website: order.website || item.website || "",
     ptttId: order.ptttId || item.ptttId || "",
+    checkerUrl: item.checkerUrl || "",
     name: item.name || "",
     url: item.url || "",
     image: item.image || "",
@@ -477,6 +480,7 @@ function markScannedAdminCreated(bi, orderNumber) {
       itemId,
       website: bi.website || "",
       ptttId: bi.ptttId || "",
+      checkerUrl: bi.checkerUrl || "",
       name: bi.name || "",
       url: bi.url || "",
       image: bi.image || "",
@@ -569,6 +573,8 @@ function syncScannedFromSheetRecords(records) {
     row.orderNo = orderNo;
     row.tracking = tracking;
     if (rec.itemKey && !row.itemKey) row.itemKey = rec.itemKey;
+    if (rec.ptttId) row.ptttId = rec.ptttId;
+    if (rec.checkerUrl) row.checkerUrl = rec.checkerUrl;
     row.syncedAt = new Date().toISOString();
     changed = true;
   }
@@ -1595,6 +1601,8 @@ async function syncOrderTrackingFromSheets({ orders, buyList, ptttList, source, 
       item.orderNo = String(rec.orderNo || "").trim();
       item.tracking = String(rec.tracking || "").trim();
       if (rec.itemKey && !item.itemKey) item.itemKey = rec.itemKey;
+      if (rec.ptttId) item.ptttId = rec.ptttId;
+      if (rec.checkerUrl) item.checkerUrl = rec.checkerUrl;
 
       if (token) usedItems.add(token);
       usedSheetRows.add(rowToken);
@@ -1609,6 +1617,8 @@ async function syncOrderTrackingFromSheets({ orders, buyList, ptttList, source, 
           orderNo: item.orderNo || "",
           tracking: item.tracking || "",
           itemKey: item.itemKey || "",
+          ptttId: item.ptttId || "",
+          checkerUrl: item.checkerUrl || "",
           syncedAt: new Date().toISOString(),
         };
       }
@@ -1649,6 +1659,10 @@ async function syncOrderTrackingFromSheets({ orders, buyList, ptttList, source, 
         columns: pttt.columns,
         orderDate: orderDate || "",
       });
+      for (const rec of pulled.records) {
+        rec.ptttId = pttt.id || "";
+        rec.checkerUrl = String(pttt.sheetUrl || "").trim();
+      }
       allRecords.push(...pulled.records);
 
       for (const rec of pulled.records) {
