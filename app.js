@@ -1197,24 +1197,37 @@ function scanTick(checked, title) {
   return `<i class="far fa-square text-muted" style="font-size:16px" title="${tip}"></i>`;
 }
 
+function resolveCheckerPttt(item) {
+  const local = findLocalPttt(
+    (item && (item.ptttId || item.ptttName)) || "",
+    (item && item.checkerUrl) || ""
+  );
+  if (local) return local;
+  const name = String((item && item.ptttName) || "").trim();
+  if (name) return { id: "", name, sheetUrl: String((item && item.checkerUrl) || "").trim() };
+  return null;
+}
+
 function checkerSheetUrl(item) {
   const direct = String((item && item.checkerUrl) || "").trim();
   if (/^https?:\/\//i.test(direct)) return direct;
-  const ptttId = String((item && item.ptttId) || "").trim();
-  if (!ptttId) return "";
-  const pttt = (state.settings.pttt || []).find(
-    (p) => String(p.id) === ptttId || String(p.name) === ptttId
-  );
+  const pttt = resolveCheckerPttt(item);
   const url = pttt ? String(pttt.sheetUrl || "").trim() : "";
   return /^https?:\/\//i.test(url) ? url : "";
 }
 
 function checkerCellHtml(item) {
+  const pttt = resolveCheckerPttt(item);
   const url = checkerSheetUrl(item);
-  if (!url) {
+  const label = String((pttt && pttt.name) || "").trim();
+  if (!url && !label) {
     return `<span class="text-muted" title="Chưa gắn Sheet PTTT — Đồng bộ Sheet để lấy file">—</span>`;
   }
-  return `<a href="${escapeHtml(url)}" target="_blank" rel="noopener" class="text-info font-weight-bold js-open-checker" title="Mở file Checker (Sheet PTTT)">Checker</a>`;
+  const text = label || "Checker";
+  if (!url) {
+    return `<span class="text-muted" title="Chưa có link Sheet">${escapeHtml(text)}</span>`;
+  }
+  return `<a href="${escapeHtml(url)}" target="_blank" rel="noopener" class="text-info font-weight-bold js-open-checker" title="Mở file ${escapeHtml(text)}">${escapeHtml(text)}</a>`;
 }
 
 function adminOrderDetailUrl(item) {
