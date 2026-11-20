@@ -2434,7 +2434,8 @@ async function tickExcelChecks(groups) {
 /** Tạo đơn Admin trên Basso (POST /partner/createWebOrder) — tab Đang mua */
 app.post("/api/basso/buy-list/create-admin-order", async (req, res) => {
   const all = readBuyList();
-  const buyList = adminBagItems(all);
+  // Tab Đang mua dùng chung giỏ — ưu tiên toàn bộ, fallback filter cũ
+  const buyList = all.length ? all : adminBagItems(all);
   if (!buyList.length) {
     return res.status(400).json({ ok: false, error: "Bạn chưa chọn sản phẩm" });
   }
@@ -2560,7 +2561,10 @@ app.post("/api/basso/buy-list/create-admin-order", async (req, res) => {
       checkGroups.get(ptttId).push(sheetCheckItem(bi, { admin: true }));
     }
     const sheetCheck = await tickExcelChecks(checkGroups);
-    const remaining = all.filter((x) => !isAdminBagItem(x));
+    const usedIds = new Set(buyList.map((x) => String(x.buyId || x.itemId)));
+    const remaining = all.filter(
+      (x) => !usedIds.has(String(x.buyId || "")) && !usedIds.has(String(x.itemId || ""))
+    );
     writeBuyList(remaining);
     const partnerCfg = readPartnerConfig(CONFIG_FILE);
     const webOrderId = result.web_order_id || result.id || null;
