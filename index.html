@@ -176,11 +176,6 @@
                     >
                   </li>
                   <li class="nav-item">
-                    <a class="nav-link" href="#tab_send" data-toggle="tab" data-status="gui_don"
-                      >Gửi đơn (<span data-count="gui_don">0</span>)</a
-                    >
-                  </li>
-                  <li class="nav-item">
                     <a class="nav-link" href="#tab_buying" data-toggle="tab" data-status="dang_mua"
                       >Đang mua (<span data-count="dang_mua">0</span>)</a
                     >
@@ -309,110 +304,7 @@
                     <p class="text-center text-muted py-4 mb-0" id="scanEmpty" hidden>Chưa có sản phẩm có Order # hoặc Tracking. Bấm Đồng bộ Sheet ở tab đơn.</p>
                   </div>
 
-                  <!-- Tab Gửi đơn = gửi Excel / Google Sheet -->
-                  <div class="tab-pane" id="pane-send" role="tabpanel" hidden>
-                    <table class="table table-striped table-bordered" id="buyTable">
-                      <thead>
-                        <tr>
-                          <th width="50">STT</th>
-                          <th width="120">Mã ĐH</th>
-                          <th style="min-width: 220px" colspan="2">Sản phẩm</th>
-                          <th>Variant</th>
-                          <th width="50">SL</th>
-                          <th width="140">Giá mua</th>
-                          <th>Tổng giá mua</th>
-                          <th>Order #</th>
-                          <th>Tracking</th>
-                          <th>Ghi chú</th>
-                          <th></th>
-                        </tr>
-                      </thead>
-                      <tbody id="buyBody" class="text-center"></tbody>
-                    </table>
-
-                    <p class="text-center text-muted py-3" id="buyEmpty" hidden>Chưa có sản phẩm. Bấm “Thêm tất cả” / “Thêm” từ tab đơn.</p>
-
-                    <br />
-                    <div class="row pb-3">
-                      <div class="col-md-12 col-lg-5 offset-lg-1 col-xl-4 offset-xl-2">
-                        <table class="table border-vertical">
-                          <tbody>
-                            <tr>
-                              <th class="text-right"><span class="text-danger">*</span> Thời gian</th>
-                              <td><input type="text" class="form-control input-sm" id="oi_created_time" autocomplete="off" placeholder="dd-mm-yyyy" /></td>
-                            </tr>
-                            <tr>
-                              <th class="text-right"><span class="text-danger">*</span> Warehouse</th>
-                              <td>
-                                <select class="form-control input-sm" id="oi_warehouse">
-                                  <option value="">- Lựa chọn -</option>
-                                </select>
-                              </td>
-                            </tr>
-                            <tr>
-                              <th class="text-right"><span class="text-danger">*</span> Người gửi đơn</th>
-                              <td><input type="text" disabled class="form-control input-sm" id="oi_buyer" value="Vinh" /></td>
-                            </tr>
-                            <tr>
-                              <th class="text-right">Ghi chú</th>
-                              <td><input type="text" class="form-control input-sm" id="oi_note" /></td>
-                            </tr>
-                          </tbody>
-                        </table>
-                      </div>
-
-                      <div class="col-md-12 col-lg-5 col-xl-4">
-                        <table class="table border-vertical">
-                          <tbody>
-                            <tr>
-                              <th class="text-right"><span class="text-danger">*</span> PTTT</th>
-                              <td>
-                                <select class="form-control input-sm" id="oi_payment">
-                                  <option value="">- Lựa chọn -</option>
-                                </select>
-                              </td>
-                            </tr>
-                            <tr>
-                              <th class="text-right" style="min-width: 110px">Tổng tiền hàng</th>
-                              <td>
-                                <div class="input-group">
-                                  <div class="input-group-prepend"><span class="input-group-text text-sm oi-cur" style="width: 50px">$</span></div>
-                                  <input type="text" class="form-control input-sm text-right arrow-none" id="oi_total" disabled />
-                                </div>
-                              </td>
-                            </tr>
-                            <tr>
-                              <th class="text-right">Ship web</th>
-                              <td>
-                                <div class="input-group">
-                                  <div class="input-group-prepend"><span class="input-group-text text-sm oi-cur" style="width: 50px">$</span></div>
-                                  <input type="number" step="0.01" min="0" class="form-control input-sm text-right arrow-none" id="oi_ship" value="0" />
-                                </div>
-                              </td>
-                            </tr>
-                            <tr>
-                              <th class="text-right">Tổng tiền mua</th>
-                              <td>
-                                <div class="input-group">
-                                  <div class="input-group-prepend"><span class="input-group-text text-sm oi-cur" style="width: 50px">$</span></div>
-                                  <input type="text" disabled class="form-control input-sm text-right" id="oi_subtotal" />
-                                </div>
-                              </td>
-                            </tr>
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-
-                    <div class="text-center">
-                      <button class="btn btn-success text-uppercase" type="button" id="btnCreateOrder" disabled>
-                        <i class="fa fa-check"></i>
-                        Gửi đơn hàng
-                      </button>
-                    </div>
-                  </div>
-
-                  <!-- Tab Đang mua = tạo đơn Admin (Basso result_tab) -->
+                  <!-- Tab Đang mua: Tự mua (Admin) hoặc Gửi đơn (Excel) -->
                   <div class="tab-pane" id="pane-buying" role="tabpanel" hidden>
                     <table class="table table-striped table-bordered" id="buyTableAdmin">
                       <thead>
@@ -431,117 +323,212 @@
                         </tr>
                       </thead>
                       <tbody id="buyBodyAdmin" class="text-center"></tbody>
+                      <tbody id="buyBody" class="text-center" hidden></tbody>
                     </table>
 
-                    <p class="text-center text-muted py-3" id="buyEmptyAdmin" hidden>Chưa có sản phẩm đang mua. Bấm “Thêm tất cả” / “Thêm” từ tab đơn.</p>
+                    <p class="text-center text-muted py-3" id="buyEmptyAdmin" hidden>Chưa có sản phẩm. Bấm “Thêm tất cả” / “Thêm” từ tab đơn hoặc Add bag.</p>
+                    <p class="text-center text-muted py-3" id="buyEmpty" hidden></p>
 
                     <br />
-                    <div class="row pb-3">
-                      <div class="col-md-12 col-lg-5 offset-lg-1 col-xl-4 offset-xl-2">
-                        <table class="table border-vertical">
-                          <tbody>
-                            <tr>
-                              <th class="text-right"><span class="text-danger">*</span> Thời gian order</th>
-                              <td><input type="text" class="form-control input-sm" id="dm_created_time" autocomplete="off" placeholder="dd-mm-yyyy" /></td>
-                            </tr>
-                            <tr>
-                              <th class="text-right"><span class="text-danger">*</span> Quốc gia</th>
-                              <td>
-                                <select class="form-control input-sm" id="dm_country">
-                                  <option value="">- Lựa chọn -</option>
-                                </select>
-                              </td>
-                            </tr>
-                            <tr>
-                              <th class="text-right"><span class="text-danger">*</span> Warehouse</th>
-                              <td>
-                                <select class="form-control input-sm" id="dm_warehouse">
-                                  <option value="">- Lựa chọn -</option>
-                                </select>
-                              </td>
-                            </tr>
-                            <tr>
-                              <th class="text-right"><span class="text-danger">*</span> Order number</th>
-                              <td><input type="text" class="form-control input-sm" id="dm_order_number" /></td>
-                            </tr>
-                            <tr>
-                              <th class="text-right"><span class="text-danger">*</span> Người tạo đơn</th>
-                              <td><input type="text" disabled class="form-control input-sm" id="dm_buyer" value="" /></td>
-                            </tr>
-                            <tr>
-                              <th class="text-right">Ghi chú</th>
-                              <td><input type="text" class="form-control input-sm" id="dm_note" /></td>
-                            </tr>
-                          </tbody>
-                        </table>
+                    <div class="row pb-3 align-items-start">
+                      <div class="col-md-12 col-lg-3 col-xl-3 mb-3">
+                        <div class="buy-mode-panel">
+                          <div class="buy-mode-title">Hình thức mua</div>
+                          <button type="button" class="buy-mode-card is-active" data-buy-mode="tu_mua" id="buyModeTuMua">
+                            <span class="buy-mode-icon"><i class="fa fa-shopping-bag"></i></span>
+                            <span class="buy-mode-label">Tự mua</span>
+                            <span class="buy-mode-radio" aria-hidden="true"></span>
+                          </button>
+                          <button type="button" class="buy-mode-card" data-buy-mode="gui_don" id="buyModeGuiDon">
+                            <span class="buy-mode-icon"><i class="fa fa-paper-plane"></i></span>
+                            <span class="buy-mode-label">Gửi đơn</span>
+                            <span class="buy-mode-radio" aria-hidden="true"></span>
+                          </button>
+                        </div>
                       </div>
 
-                      <div class="col-md-12 col-lg-5 col-xl-4">
-                        <table class="table border-vertical">
-                          <tbody>
-                            <tr>
-                              <th class="text-right"><span class="text-danger">*</span> PTTT</th>
-                              <td>
-                                <select class="form-control input-sm" id="dm_payment">
-                                  <option value="">- Lựa chọn -</option>
-                                </select>
-                              </td>
-                            </tr>
-                            <tr>
-                              <th class="text-right" style="min-width: 110px">Tổng tiền hàng</th>
-                              <td>
-                                <div class="input-group">
-                                  <div class="input-group-prepend"><span class="input-group-text text-sm dm-cur" style="width: 50px">$</span></div>
-                                  <input type="text" class="form-control input-sm text-right arrow-none" id="dm_total" disabled />
-                                </div>
-                              </td>
-                            </tr>
-                            <tr>
-                              <th class="text-right">Ship web</th>
-                              <td>
-                                <div class="input-group">
-                                  <div class="input-group-prepend"><span class="input-group-text text-sm dm-cur" style="width: 50px">$</span></div>
-                                  <input type="number" step="0.01" min="0" class="form-control input-sm text-right arrow-none" id="dm_ship" value="0" />
-                                </div>
-                              </td>
-                            </tr>
-                            <tr>
-                              <th class="text-right">Giảm giá</th>
-                              <td>
-                                <div class="input-group">
-                                  <div class="input-group-prepend"><span class="input-group-text text-sm dm-cur" style="width: 50px">$</span></div>
-                                  <input type="number" step="0.01" min="0" class="form-control input-sm text-right arrow-none" id="dm_discount" value="0" />
-                                </div>
-                              </td>
-                            </tr>
-                            <tr>
-                              <th class="text-right">Tổng tiền mua</th>
-                              <td>
-                                <div class="input-group">
-                                  <div class="input-group-prepend"><span class="input-group-text text-sm dm-cur" style="width: 50px">$</span></div>
-                                  <input type="text" disabled class="form-control input-sm text-right" id="dm_subtotal" />
-                                </div>
-                              </td>
-                            </tr>
-                            <tr>
-                              <th class="text-right">Web Cashback</th>
-                              <td>
-                                <select class="form-control input-sm" id="dm_web_cashback">
-                                  <option value="">- Lựa chọn -</option>
-                                </select>
-                              </td>
-                            </tr>
-                            <tr>
-                              <th class="text-right">% Cashback</th>
-                              <td>
-                                <div class="input-group">
-                                  <div class="input-group-prepend"><span class="input-group-text text-sm">%</span></div>
-                                  <input type="number" step="0.01" min="0" class="form-control input-sm text-right" id="dm_cashback_rate" value="0" style="min-width: 45px" />
-                                </div>
-                              </td>
-                            </tr>
-                          </tbody>
-                        </table>
+                      <div class="col-md-12 col-lg-9 col-xl-9">
+                        <div id="buyFormTuMua" class="buy-form-pane">
+                          <div class="row">
+                            <div class="col-md-12 col-lg-6">
+                              <table class="table border-vertical">
+                                <tbody>
+                                  <tr>
+                                    <th class="text-right"><span class="text-danger">*</span> Thời gian order</th>
+                                    <td><input type="text" class="form-control input-sm" id="dm_created_time" autocomplete="off" placeholder="dd-mm-yyyy" /></td>
+                                  </tr>
+                                  <tr>
+                                    <th class="text-right"><span class="text-danger">*</span> Quốc gia</th>
+                                    <td>
+                                      <select class="form-control input-sm" id="dm_country">
+                                        <option value="">- Lựa chọn -</option>
+                                      </select>
+                                    </td>
+                                  </tr>
+                                  <tr>
+                                    <th class="text-right"><span class="text-danger">*</span> Warehouse</th>
+                                    <td>
+                                      <select class="form-control input-sm" id="dm_warehouse">
+                                        <option value="">- Lựa chọn -</option>
+                                      </select>
+                                    </td>
+                                  </tr>
+                                  <tr>
+                                    <th class="text-right"><span class="text-danger">*</span> Order number</th>
+                                    <td><input type="text" class="form-control input-sm" id="dm_order_number" /></td>
+                                  </tr>
+                                  <tr>
+                                    <th class="text-right"><span class="text-danger">*</span> Người tạo đơn</th>
+                                    <td><input type="text" disabled class="form-control input-sm" id="dm_buyer" value="" /></td>
+                                  </tr>
+                                  <tr>
+                                    <th class="text-right">Ghi chú</th>
+                                    <td><input type="text" class="form-control input-sm" id="dm_note" /></td>
+                                  </tr>
+                                </tbody>
+                              </table>
+                            </div>
+                            <div class="col-md-12 col-lg-6">
+                              <table class="table border-vertical">
+                                <tbody>
+                                  <tr>
+                                    <th class="text-right"><span class="text-danger">*</span> PTTT</th>
+                                    <td>
+                                      <select class="form-control input-sm" id="dm_payment">
+                                        <option value="">- Lựa chọn -</option>
+                                      </select>
+                                    </td>
+                                  </tr>
+                                  <tr>
+                                    <th class="text-right" style="min-width: 110px">Tổng tiền hàng</th>
+                                    <td>
+                                      <div class="input-group">
+                                        <div class="input-group-prepend"><span class="input-group-text text-sm dm-cur" style="width: 50px">$</span></div>
+                                        <input type="text" class="form-control input-sm text-right arrow-none" id="dm_total" disabled />
+                                      </div>
+                                    </td>
+                                  </tr>
+                                  <tr>
+                                    <th class="text-right">Ship web</th>
+                                    <td>
+                                      <div class="input-group">
+                                        <div class="input-group-prepend"><span class="input-group-text text-sm dm-cur" style="width: 50px">$</span></div>
+                                        <input type="number" step="0.01" min="0" class="form-control input-sm text-right arrow-none" id="dm_ship" value="0" />
+                                      </div>
+                                    </td>
+                                  </tr>
+                                  <tr>
+                                    <th class="text-right">Giảm giá</th>
+                                    <td>
+                                      <div class="input-group">
+                                        <div class="input-group-prepend"><span class="input-group-text text-sm dm-cur" style="width: 50px">$</span></div>
+                                        <input type="number" step="0.01" min="0" class="form-control input-sm text-right arrow-none" id="dm_discount" value="0" />
+                                      </div>
+                                    </td>
+                                  </tr>
+                                  <tr>
+                                    <th class="text-right">Tổng tiền mua</th>
+                                    <td>
+                                      <div class="input-group">
+                                        <div class="input-group-prepend"><span class="input-group-text text-sm dm-cur" style="width: 50px">$</span></div>
+                                        <input type="text" disabled class="form-control input-sm text-right" id="dm_subtotal" />
+                                      </div>
+                                    </td>
+                                  </tr>
+                                  <tr>
+                                    <th class="text-right">Web Cashback</th>
+                                    <td>
+                                      <select class="form-control input-sm" id="dm_web_cashback">
+                                        <option value="">- Lựa chọn -</option>
+                                      </select>
+                                    </td>
+                                  </tr>
+                                  <tr>
+                                    <th class="text-right">% Cashback</th>
+                                    <td>
+                                      <div class="input-group">
+                                        <div class="input-group-prepend"><span class="input-group-text text-sm">%</span></div>
+                                        <input type="number" step="0.01" min="0" class="form-control input-sm text-right" id="dm_cashback_rate" value="0" style="min-width: 45px" />
+                                      </div>
+                                    </td>
+                                  </tr>
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div id="buyFormGuiDon" class="buy-form-pane" hidden>
+                          <div class="row">
+                            <div class="col-md-12 col-lg-6">
+                              <table class="table border-vertical">
+                                <tbody>
+                                  <tr>
+                                    <th class="text-right"><span class="text-danger">*</span> Thời gian</th>
+                                    <td><input type="text" class="form-control input-sm" id="oi_created_time" autocomplete="off" placeholder="dd-mm-yyyy" /></td>
+                                  </tr>
+                                  <tr>
+                                    <th class="text-right"><span class="text-danger">*</span> Warehouse</th>
+                                    <td>
+                                      <select class="form-control input-sm" id="oi_warehouse">
+                                        <option value="">- Lựa chọn -</option>
+                                      </select>
+                                    </td>
+                                  </tr>
+                                  <tr>
+                                    <th class="text-right"><span class="text-danger">*</span> Người gửi đơn</th>
+                                    <td><input type="text" disabled class="form-control input-sm" id="oi_buyer" value="Vinh" /></td>
+                                  </tr>
+                                  <tr>
+                                    <th class="text-right">Ghi chú</th>
+                                    <td><input type="text" class="form-control input-sm" id="oi_note" /></td>
+                                  </tr>
+                                </tbody>
+                              </table>
+                            </div>
+                            <div class="col-md-12 col-lg-6">
+                              <table class="table border-vertical">
+                                <tbody>
+                                  <tr>
+                                    <th class="text-right"><span class="text-danger">*</span> PTTT</th>
+                                    <td>
+                                      <select class="form-control input-sm" id="oi_payment">
+                                        <option value="">- Lựa chọn -</option>
+                                      </select>
+                                    </td>
+                                  </tr>
+                                  <tr>
+                                    <th class="text-right" style="min-width: 110px">Tổng tiền hàng</th>
+                                    <td>
+                                      <div class="input-group">
+                                        <div class="input-group-prepend"><span class="input-group-text text-sm oi-cur" style="width: 50px">$</span></div>
+                                        <input type="text" class="form-control input-sm text-right arrow-none" id="oi_total" disabled />
+                                      </div>
+                                    </td>
+                                  </tr>
+                                  <tr>
+                                    <th class="text-right">Ship web</th>
+                                    <td>
+                                      <div class="input-group">
+                                        <div class="input-group-prepend"><span class="input-group-text text-sm oi-cur" style="width: 50px">$</span></div>
+                                        <input type="number" step="0.01" min="0" class="form-control input-sm text-right arrow-none" id="oi_ship" value="0" />
+                                      </div>
+                                    </td>
+                                  </tr>
+                                  <tr>
+                                    <th class="text-right">Tổng tiền mua</th>
+                                    <td>
+                                      <div class="input-group">
+                                        <div class="input-group-prepend"><span class="input-group-text text-sm oi-cur" style="width: 50px">$</span></div>
+                                        <input type="text" disabled class="form-control input-sm text-right" id="oi_subtotal" />
+                                      </div>
+                                    </td>
+                                  </tr>
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     </div>
 
@@ -549,6 +536,10 @@
                       <button class="btn btn-success text-uppercase" type="button" id="btnCreateAdminOrder" disabled>
                         <i class="fa fa-check"></i>
                         Tạo đơn hàng
+                      </button>
+                      <button class="btn btn-success text-uppercase" type="button" id="btnCreateOrder" disabled hidden>
+                        <i class="fa fa-check"></i>
+                        Gửi đơn hàng
                       </button>
                     </div>
                   </div>

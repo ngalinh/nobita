@@ -154,6 +154,100 @@
   color: #1b7a3d;
 }
 
+/* Đang mua — chọn hình thức Tự mua / Gửi đơn */
+.buy-mode-panel {
+  background: #f8f9fb;
+  border: 1px solid #e4e7ea;
+  border-radius: 8px;
+  padding: 14px;
+}
+
+.buy-mode-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #73818f;
+  margin-bottom: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.buy-mode-card {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 14px;
+  margin-bottom: 10px;
+  border: 1.5px solid #d8dde3;
+  border-radius: 8px;
+  background: #fff;
+  color: #3a4149;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+}
+
+.buy-mode-card:last-child {
+  margin-bottom: 0;
+}
+
+.buy-mode-card:hover {
+  border-color: #f0a35a;
+}
+
+.buy-mode-card.is-active {
+  border-color: #f0a35a;
+  background: #fff4e8;
+  box-shadow: 0 0 0 1px rgba(240, 163, 90, 0.25);
+}
+
+.buy-mode-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #f0f3f5;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #73818f;
+  flex: 0 0 36px;
+}
+
+.buy-mode-card.is-active .buy-mode-icon {
+  background: #ffe0bf;
+  color: #c56a12;
+}
+
+.buy-mode-label {
+  flex: 1;
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.buy-mode-radio {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid #c5ced6;
+  flex: 0 0 18px;
+  position: relative;
+}
+
+.buy-mode-card.is-active .buy-mode-radio {
+  border-color: #e67e22;
+}
+
+.buy-mode-card.is-active .buy-mode-radio::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #e67e22;
+}
+
 /* Báo cáo mua chậm */
 .report-toolbar-text .report-title {
   font-size: 18px;

@@ -2358,7 +2358,8 @@ app.delete("/api/basso/buy-list/:buyId", (req, res) => {
 
 app.post("/api/basso/buy-list/create-order", async (req, res) => {
   const all = readBuyList();
-  const buyList = sendBagItems(all);
+  // Tab Đang mua gộp Gửi đơn: gửi toàn bộ giỏ đang mở
+  const buyList = all.length ? all : sendBagItems(all);
   if (!buyList.length) {
     return res.status(400).json({ ok: false, error: "Bạn chưa chọn sản phẩm" });
   }
@@ -2369,7 +2370,10 @@ app.post("/api/basso/buy-list/create-order", async (req, res) => {
     if (!result.ok) {
       return res.status(400).json(result);
     }
-    const remaining = all.filter((x) => !isSendBagItem(x));
+    const sentIds = new Set(buyList.map((x) => String(x.buyId || x.itemId)));
+    const remaining = all.filter(
+      (x) => !sentIds.has(String(x.buyId || "")) && !sentIds.has(String(x.itemId || ""))
+    );
     writeBuyList(remaining);
     res.json({
       ...result,

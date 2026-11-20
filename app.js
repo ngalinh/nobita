@@ -60,6 +60,8 @@ const state = {
   source: "mock",
   bassoSiteUrl: "https://basso.vn",
   adminModalOpen: false,
+  /** tu_mua = tạo Admin | gui_don = gửi Excel — trong tab Đang mua */
+  buyMode: "tu_mua",
   pendingByTab: {},
   websitePttt: {},
   websitePtttSource: "",
@@ -262,6 +264,26 @@ function refreshBagView() {
   if (state.status === "dang_mua" || state.status === "gui_don") renderBuyList();
 }
 
+function activeBuyItems() {
+  // Tab Đang mua dùng chung 1 giỏ; hình thức chỉ đổi form bên dưới
+  return state.buyList || [];
+}
+
+function setBuyMode(mode) {
+  const next = mode === "gui_don" ? "gui_don" : "tu_mua";
+  state.buyMode = next;
+  $(".buy-mode-card").removeClass("is-active");
+  $(`.buy-mode-card[data-buy-mode="${next}"]`).addClass("is-active");
+  $("#buyFormTuMua").prop("hidden", next !== "tu_mua");
+  $("#buyFormGuiDon").prop("hidden", next !== "gui_don");
+  $("#btnCreateAdminOrder").prop("hidden", next !== "tu_mua");
+  $("#btnCreateOrder").prop("hidden", next !== "gui_don");
+  renderBuyList();
+  if (next === "gui_don") fillOrderFormSelects();
+  else fillAdminFormSelects();
+  updateMeta();
+}
+
 /** Thêm ngay từ đơn đang hiện, lưu server phía sau — không chuyển tab. */
 async function addOrderItemsToBag(order, onlyItemId) {
   if (!order) return toast("Không tìm thấy đơn", { error: true });
@@ -381,7 +403,9 @@ function updateMeta() {
     can_mua_order: 0,
     can_mua_co: 0,
     gui_don: sendBagItems().length,
-    dang_mua: adminBagItems().length,
+    dang_mua: new Set(
+      [...adminBagItems(), ...sendBagItems()].map((it) => String(it.itemId || it.buyId))
+    ).size,
     bao_cao: overdue.reduce((s, r) => s + r.orderCount, 0),
     da_quet: scannedProductRows().length,
   };
@@ -421,7 +445,7 @@ function updateMeta() {
       .filter((o) => o.status === "can_mua_order" || o.status === "can_mua_co")
       .reduce((s, o) => s + Number(o.total || 0), 0);
   } else if (state.status === "dang_mua" || state.status === "gui_don") {
-    const bag = state.status === "dang_mua" ? adminBagItems() : sendBagItems();
+    const bag = activeBuyItems();
     pending = bag.reduce((s, it) => s + Number(it.price || 0) * Number(it.qty || 1), 0);
   } else if (state.status === "da_quet") {
     pending = scannedProductRows().reduce(
@@ -541,22 +565,21 @@ function itemRows(order) {
 }
 
 function calcBuyTotals() {
-  const sendItems = sendBagItems();
   const adminItems = adminBagItems();
-  const goodsSend = sendItems.reduce((s, it) => s + Number(it.price || 0) * Number(it.qty || 1), 0);
+  const bagAll = activeBuyItems();
+  const goodsAll = bagAll.reduce((s, it) => s + Number(it.price || 0) * Number(it.qty || 1), 0);
   const goodsAdmin = adminItems.reduce((s, it) => s + Number(it.price || 0) * Number(it.qty || 1), 0);
-  const ship = Number($("#oi_ship").val() || 0);
-  const sub = goodsSend + ship;
-  $("#oi_total").val(money(goodsSend));
-  $("#oi_subtotal").val(money(sub));
-  $("#btnCreateOrder").prop("disabled", sendItems.length === 0);
+
+  const shipOi = Number($("#oi_ship").val() || 0);
+  $("#oi_total").val(money(goodsAll));
+  $("#oi_subtotal").val(money(goodsAll + shipOi));
+  $("#btnCreateOrder").prop("disabled", bagAll.length === 0);
 
   const shipDm = Number($("#dm_ship").val() || 0);
   const discDm = Number($("#dm_discount").val() || 0);
-  const subDm = goodsAdmin - discDm + shipDm;
-  $("#dm_total").val(money(goodsAdmin));
-  $("#dm_subtotal").val(money(subDm));
-  $("#btnCreateAdminOrder").prop("disabled", adminItems.length === 0);
+  $("#dm_total").val(money(goodsAll));
+  $("#dm_subtotal").val(money(goodsAll - discDm + shipDm));
+  $("#btnCreateAdminOrder").prop("disabled", bagAll.length === 0);
 
   const shipAb = Number($("#ab_ship").val() || 0);
   const discAb = Number($("#ab_discount").val() || 0);
@@ -718,18 +741,15 @@ function renderAdminModalBag() {
 }
 
 function renderBuyList() {
-  const $body = $("#buyBody").empty();
   const $bodyAdmin = $("#buyBodyAdmin").empty();
-  const sendItems = sendBagItems();
-  const adminItems = adminBagItems();
-  $("#buyEmpty").prop("hidden", sendItems.length > 0);
-  $("#buyEmptyAdmin").prop("hidden", adminItems.length > 0);
+  $("#buyBody").empty();
+  const items = activeBuyItems();
+  const isAdminMode = state.buyMode !== "gui_don";
+  $("#buyEmpty").prop("hidden", true);
+  $("#buyEmptyAdmin").prop("hidden", items.length > 0);
 
-  sendItems.forEach((item, i) => {
-    $body.append(buyListRowHtml(item, i, { admin: false }));
-  });
-  adminItems.forEach((item, i) => {
-    $bodyAdmin.append(buyListRowHtml(item, i, { admin: true }));
+  items.forEach((item, i) => {
+    $bodyAdmin.append(buyListRowHtml(item, i, { admin: isAdminMode }));
   });
 
   if (state.adminModalOpen) renderAdminModalBag();
@@ -1092,23 +1112,24 @@ function showPane() {
     return;
   }
 
+  // Tab Gửi đơn đã gộp vào Đang mua
+  if (state.status === "gui_don") {
+    state.status = "dang_mua";
+    state.buyMode = "gui_don";
+  }
   const buying = state.status === "dang_mua";
-  const sending = state.status === "gui_don";
   const report = state.status === "bao_cao";
   const scanned = state.status === "da_quet";
-  const listOrders = !buying && !sending && !report && !scanned;
+  const listOrders = !buying && !report && !scanned;
   $("#pane-orders").prop("hidden", !listOrders).toggleClass("active", listOrders);
-  $("#pane-send").prop("hidden", !sending).toggleClass("active", sending);
   $("#pane-buying").prop("hidden", !buying).toggleClass("active", buying);
   $("#pane-report").prop("hidden", !report).toggleClass("active", report);
   $("#pane-scanned").prop("hidden", !scanned).toggleClass("active", scanned);
-  if (buying || sending || report || scanned) {
+  if (buying || report || scanned) {
     $("#ordersPager").prop("hidden", true);
   }
-  if (buying || sending) {
-    fillOrderFormSelects();
-    fillAdminFormSelects();
-    renderBuyList();
+  if (buying) {
+    setBuyMode(state.buyMode || "tu_mua");
   } else if (report) {
     renderReport();
   } else if (scanned) {
@@ -2470,8 +2491,12 @@ $(function () {
   $("#dm_ship, #dm_discount").on("input change", calcBuyTotals);
   $("#dm_country").on("change", updateAdminCurrencySymbol);
 
+  $("#pane-buying").on("click", ".buy-mode-card", function () {
+    setBuyMode($(this).attr("data-buy-mode") || $(this).data("buy-mode"));
+  });
+
   $("#btnCreateOrder").on("click", async function () {
-    if (!sendBagItems().length) return toast("Bạn chưa chọn sản phẩm");
+    if (!activeBuyItems().length) return toast("Bạn chưa chọn sản phẩm");
     if (!$("#oi_warehouse").val() || !$("#oi_payment").val()) {
       return toast("Vui lòng điền đủ các trường *");
     }
@@ -2604,7 +2629,7 @@ $(function () {
   }
 
   $("#btnCreateAdminOrder").on("click", async function () {
-    if (!adminBagItems().length) return toast("Bạn chưa chọn sản phẩm");
+    if (!activeBuyItems().length) return toast("Bạn chưa chọn sản phẩm");
     if (!highlightMissingFields(adminRequiredFields)) return;
     const confirmed = await bassoConfirm(
       "Xác nhận tạo đơn hàng",
