@@ -1399,6 +1399,21 @@ function isOverdueOrder(order, now = new Date()) {
   return days > 3;
 }
 
+function formatReportDayMonth(d) {
+  if (!d) return "—";
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  return `${day}/${month}`;
+}
+
+function reportStackHtml(lines) {
+  const list = (lines || []).filter(Boolean);
+  if (!list.length) return '<span class="text-muted">—</span>';
+  return `<ul class="report-stack">${list
+    .map((line) => `<li>${escapeHtml(line)}</li>`)
+    .join("")}</ul>`;
+}
+
 function buildReportRows() {
   const groups = new Map();
   state.orders.forEach((order) => {
@@ -1410,7 +1425,8 @@ function buildReportRows() {
         website,
         orderCount: 0,
         amount: 0,
-        dates: [],
+        dateCounts: new Map(),
+        groupCounts: new Map(),
         handlers: new Set(),
         notes: [],
       });
@@ -1418,8 +1434,12 @@ function buildReportRows() {
     const g = groups.get(website);
     g.orderCount += 1;
     g.amount += Number(order.total || 0);
-    if (created) g.dates.push(created);
-    // Người xử lý = PIC (handler), không phải nhân viên tạo/duyệt (staff)
+    if (created) {
+      const label = formatReportDayMonth(created);
+      g.dateCounts.set(label, (g.dateCounts.get(label) || 0) + 1);
+    }
+    const kh = String(order.customerType || "").trim() || "Chưa phân nhóm";
+    g.groupCounts.set(kh, (g.groupCounts.get(kh) || 0) + 1);
     if (order.handler && String(order.handler).trim() && order.handler !== "Lựa chọn") {
       g.handlers.add(String(order.handler).trim());
     }
@@ -1428,27 +1448,32 @@ function buildReportRows() {
 
   return [...groups.values()]
     .map((g) => {
-      g.dates.sort((a, b) => a - b);
-      // Hiện tất cả ngày tạo (unique), vd "9/9, 10/9" — không chỉ ngày cũ nhất
-      const dateLabels = [];
-      const seen = new Set();
-      for (const d of g.dates) {
-        const label = formatDayMonth(d);
-        if (seen.has(label)) continue;
-        seen.add(label);
-        dateLabels.push(label);
-      }
+      const dateLines = [...g.dateCounts.entries()]
+        .sort((a, b) => {
+          const [da, ma] = a[0].split("/").map(Number);
+          const [db, mb] = b[0].split("/").map(Number);
+          return ma - mb || da - db;
+        })
+        .map(([label, count]) => `Đơn ${label} (${count} đơn)`);
+      const groupLines = [...g.groupCounts.entries()]
+        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+        .map(([name, count]) => `${name} (${count} đơn)`);
+      const handlers = [...g.handlers].filter(Boolean);
       const saved = state.reportReasons[g.website];
       const reason =
         saved != null && String(saved).trim() !== ""
           ? String(saved)
-          : g.notes.filter((v, i, a) => a.indexOf(v) === i).join(" / ");
+          : g.notes.filter((v, i, a) => a.indexOf(v) === i).join("\n");
       return {
         website: g.website,
         orderCount: g.orderCount,
         amount: g.amount,
-        dateLabel: dateLabels.join(", ") || "—",
-        staff: [...g.handlers].filter(Boolean).join(", ") || "—",
+        dateLines,
+        dateLabel: dateLines.join("\n") || "—",
+        groupLines,
+        groupLabel: groupLines.join("\n") || "—",
+        staffLines: handlers,
+        staff: handlers.join(", ") || "—",
         reason,
       };
     })
@@ -1467,17 +1492,13 @@ function renderReport() {
       <tr data-website="${escapeHtml(row.website)}">
         <td class="text-center">${i + 1}</td>
         <td>${escapeHtml(row.website)}</td>
-        <td class="text-center">${row.orderCount}</td>
-        <td>$ ${money(row.amount)}</td>
-        <td class="text-center">${escapeHtml(row.dateLabel)}</td>
-        <td class="text-center">${escapeHtml(row.staff)}</td>
+        <td class="text-center"><span class="report-count-badge">${row.orderCount}</span></td>
+        <td><span class="report-amount">$ ${money(row.amount)}</span></td>
+        <td>${reportStackHtml(row.dateLines)}</td>
+        <td>${reportStackHtml(row.groupLines)}</td>
+        <td>${reportStackHtml(row.staffLines)}</td>
         <td>
-          <div class="input-group input-group-sm">
-            <textarea class="form-control form-control-sm js-report-reason" rows="2">${escapeHtml(row.reason)}</textarea>
-            <div class="input-group-append">
-              <button type="button" class="btn btn-light border js-save-reason" title="Lưu lý do"><i class="fa fa-save"></i></button>
-            </div>
-          </div>
+          <textarea class="form-control form-control-sm js-report-reason" rows="3" placeholder="Nhập lý do...">${escapeHtml(row.reason)}</textarea>
         </td>
       </tr>`);
   });
@@ -1509,40 +1530,46 @@ function wrapCanvasText(ctx, text, maxWidth) {
 }
 
 function buildReportPngBase64(rows, headerDate) {
-  // scale cao + layout lớn → ảnh to, chữ nét trên Telegram
   const scale = 3;
-  const fontBody = "16px Arial, Helvetica, sans-serif";
-  const fontBold = "bold 16px Arial, Helvetica, sans-serif";
-  const fontDate = "bold 22px Arial, Helvetica, sans-serif";
-  const fontCaption = "15px Arial, Helvetica, sans-serif";
+  const fontBody = "15px Arial, Helvetica, sans-serif";
+  const fontBold = "bold 15px Arial, Helvetica, sans-serif";
+  const fontTitle = "bold 20px Arial, Helvetica, sans-serif";
+  const fontCaption = "14px Arial, Helvetica, sans-serif";
   const cols = [
-    { key: "stt", title: "STT", w: 64, align: "center" },
-    { key: "website", title: "Website", w: 160, align: "left" },
-    { key: "orderCount", title: "Số đơn mua chậm", w: 140, align: "center" },
-    { key: "amount", title: "Số tiền", w: 130, align: "left" },
-    { key: "dateLabel", title: "Ngày tạo đơn", w: 170, align: "center" },
-    { key: "staff", title: "Người xử lý", w: 140, align: "center" },
-    { key: "reason", title: "Lý do", w: 480, align: "left" },
+    { key: "stt", title: "STT", w: 56, align: "center" },
+    { key: "website", title: "Website", w: 170, align: "left" },
+    { key: "orderCount", title: "Đơn chậm", w: 90, align: "center" },
+    { key: "amount", title: "Số tiền", w: 120, align: "left" },
+    { key: "dateLabel", title: "Ngày tạo đơn", w: 180, align: "left", multiline: true },
+    { key: "groupLabel", title: "Nhóm KH", w: 180, align: "left", multiline: true },
+    { key: "staff", title: "Người xử lý", w: 130, align: "left", multiline: true },
+    { key: "reason", title: "Lý do", w: 320, align: "left", multiline: true },
   ];
   const tableW = cols.reduce((s, c) => s + c.w, 0);
   const pad = 24;
-  const captionH = 36;
-  const dateRowH = 48;
-  const headRowH = 48;
-  const lineH = 22;
-  const cellPadY = 12;
-  const cellPadX = 12;
+  const titleH = 28;
+  const captionH = 28;
+  const headRowH = 44;
+  const lineH = 20;
+  const cellPadY = 10;
+  const cellPadX = 10;
 
   const canvasProbe = document.createElement("canvas");
   const probe = canvasProbe.getContext("2d");
   probe.font = fontBody;
 
   const rowHeights = (rows || []).map((row) => {
-    const reasonLines = wrapCanvasText(probe, row.reason || "", cols[6].w - cellPadX * 2);
-    return Math.max(48, reasonLines.length * lineH + cellPadY * 2);
+    const stacks = [
+      wrapCanvasText(probe, row.dateLabel || "", cols[4].w - cellPadX * 2),
+      wrapCanvasText(probe, row.groupLabel || "", cols[5].w - cellPadX * 2),
+      wrapCanvasText(probe, (row.staffLines || []).join("\n") || row.staff || "", cols[6].w - cellPadX * 2),
+      wrapCanvasText(probe, row.reason || "", cols[7].w - cellPadX * 2),
+    ];
+    const maxLines = Math.max(1, ...stacks.map((l) => l.length));
+    return Math.max(48, maxLines * lineH + cellPadY * 2);
   });
   const bodyH = rowHeights.reduce((s, h) => s + h, 0) || 56;
-  const totalH = pad + captionH + dateRowH + headRowH + bodyH + pad;
+  const totalH = pad + titleH + captionH + 12 + headRowH + bodyH + pad;
   const totalW = pad * 2 + tableW;
 
   const canvas = document.createElement("canvas");
@@ -1555,61 +1582,56 @@ function buildReportPngBase64(rows, headerDate) {
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, totalW, totalH);
 
-  ctx.fillStyle = "#333333";
-  ctx.font = fontCaption;
   ctx.textBaseline = "top";
+  ctx.fillStyle = "#2f353a";
+  ctx.font = fontTitle;
+  ctx.fillText(`Báo cáo đơn chậm mua  ${headerDate || ""}`, pad, pad);
+  ctx.fillStyle = "#73818f";
+  ctx.font = fontCaption;
   ctx.fillText(
-    "Tổng hợp đơn ở trạng thái chờ mua / cần xử lý, quá 3 ngày chưa có Order #, gom theo website.",
+    "Đơn chờ mua / cần xử lý, quá 3 ngày chưa có Order # · Gom theo website",
     pad,
-    pad + 4
+    pad + titleH + 2
   );
 
   const tableX = pad;
-  const tableY = pad + captionH;
+  const tableY = pad + titleH + captionH + 12;
 
   function drawCell(x, y, w, h, text, opts = {}) {
-    ctx.strokeStyle = "#222222";
-    ctx.lineWidth = 1.25;
+    ctx.strokeStyle = "#e4e7ea";
+    ctx.lineWidth = 1;
     ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
     if (opts.bg) {
       ctx.fillStyle = opts.bg;
       ctx.fillRect(x + 1, y + 1, w - 2, h - 2);
     }
-    ctx.fillStyle = "#111111";
-    ctx.font = opts.dateHead ? fontDate : opts.bold ? fontBold : fontBody;
+    ctx.fillStyle = opts.color || "#2f353a";
+    ctx.font = opts.bold ? fontBold : fontBody;
     const lines = opts.multiline
       ? wrapCanvasText(ctx, text, w - cellPadX * 2)
       : [String(text ?? "")];
-    const textBlockH = lines.length * (opts.dateHead ? 26 : lineH);
-    let ty = y + (opts.multiline ? cellPadY : (h - textBlockH) / 2);
+    const textBlockH = lines.length * lineH;
+    let ty = y + (opts.multiline || opts.top ? cellPadY : (h - textBlockH) / 2);
     for (const line of lines) {
       let tx = x + cellPadX;
-      if (opts.align === "center") {
-        tx = x + (w - ctx.measureText(line).width) / 2;
-      }
+      if (opts.align === "center") tx = x + (w - ctx.measureText(line).width) / 2;
       ctx.fillText(line, Math.round(tx), Math.round(ty));
-      ty += opts.dateHead ? 26 : lineH;
+      ty += lineH;
     }
   }
 
-  drawCell(tableX, tableY, tableW, dateRowH, headerDate, {
-    bg: "#ffe600",
-    dateHead: true,
-    align: "center",
-  });
-
   let x = tableX;
-  const headY = tableY + dateRowH;
   for (const col of cols) {
-    drawCell(x, headY, col.w, headRowH, col.title, {
-      bg: "#ffe600",
+    drawCell(x, tableY, col.w, headRowH, col.title, {
+      bg: "#f6f7f9",
       bold: true,
-      align: "center",
+      align: "left",
+      top: true,
     });
     x += col.w;
   }
 
-  let y = headY + headRowH;
+  let y = tableY + headRowH;
   if (!(rows || []).length) {
     drawCell(tableX, y, tableW, 56, "Không có website nào quá 3 ngày chưa mua.", {
       align: "center",
@@ -1623,14 +1645,17 @@ function buildReportPngBase64(rows, headerDate) {
         String(row.orderCount),
         `$ ${money(row.amount)}`,
         row.dateLabel,
-        row.staff,
+        row.groupLabel,
+        (row.staffLines || []).join("\n") || row.staff || "—",
         row.reason || "",
       ];
       x = tableX;
       cols.forEach((col, ci) => {
         drawCell(x, y, col.w, h, values[ci], {
           align: col.align,
-          multiline: col.key === "reason",
+          multiline: !!col.multiline || col.key === "reason",
+          bold: col.key === "amount",
+          top: !!col.multiline,
         });
         x += col.w;
       });
@@ -2057,10 +2082,11 @@ $(function () {
     }
   });
 
-  $("#pane-report").on("click", ".js-save-reason", async function () {
-    const $tr = $(this).closest("tr");
+  async function saveReportReasonFromRow($tr, { quiet } = {}) {
     const website = $tr.data("website");
+    if (!website) return;
     const reason = $tr.find(".js-report-reason").val() || "";
+    if (String(state.reportReasons[website] || "") === String(reason)) return;
     try {
       const res = await apiFetch("/api/basso/report-reasons", {
         method: "PUT",
@@ -2071,10 +2097,17 @@ $(function () {
       if (!data.ok) return toast(data.error || "Lưu lý do thất bại", { error: true });
       state.reportReasons = data.reasons || state.reportReasons;
       state.reportReasons[website] = reason;
-      toast("Đã lưu lý do");
+      if (!quiet) toast("Đã lưu lý do");
     } catch (err) {
       toast("Lỗi lưu lý do: " + (err.message || String(err)), { error: true });
     }
+  }
+
+  $("#pane-report").on("blur", ".js-report-reason", function () {
+    saveReportReasonFromRow($(this).closest("tr"), { quiet: true });
+  });
+  $("#pane-report").on("click", ".js-save-reason", function () {
+    saveReportReasonFromRow($(this).closest("tr"));
   });
 
   $("#btnSendReportTelegram").on("click", async function () {

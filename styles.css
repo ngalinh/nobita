@@ -155,32 +155,85 @@
 }
 
 /* Báo cáo mua chậm */
-.report-table {
-  border: 1px solid #222;
+.report-toolbar-text .report-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #2f353a;
+}
+
+.report-toolbar-text .report-title-date {
+  margin-left: 8px;
+  font-weight: 500;
+  color: #73818f;
+}
+
+.report-table-wrap {
+  border: 1px solid #e4e7ea;
+  border-radius: 6px;
   background: #fff;
+}
+
+.report-table {
+  background: #fff;
+  margin-bottom: 0;
 }
 
 .report-table th,
 .report-table td {
-  border: 1px solid #222 !important;
-  vertical-align: middle;
+  border-color: #e4e7ea !important;
+  vertical-align: top;
+  padding: 12px 14px;
 }
 
 .report-table thead th {
-  background: #ffe600 !important;
-  color: #111;
-  font-weight: 700;
-  text-align: center;
+  background: #f6f7f9 !important;
+  color: #3a4149;
+  font-weight: 600;
+  text-align: left;
+  white-space: nowrap;
+  border-bottom-width: 1px !important;
 }
 
-.report-table .report-date-head {
-  font-size: 16px;
-  letter-spacing: 0.5px;
+.report-table tbody tr:hover {
+  background: #fafbfc;
+}
+
+.report-count-badge {
+  display: inline-block;
+  min-width: 28px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: #ffe8cc;
+  color: #9a5b00;
+  font-weight: 700;
+  text-align: center;
+  line-height: 1.3;
+}
+
+.report-stack {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  line-height: 1.45;
+  color: #4f5b66;
+  font-size: 13px;
+}
+
+.report-stack li + li {
+  margin-top: 2px;
+}
+
+.report-amount {
+  font-weight: 700;
+  color: #2f353a;
+  white-space: nowrap;
 }
 
 .report-table .js-report-reason {
-  min-height: 52px;
+  min-height: 72px;
   resize: vertical;
+  font-size: 13px;
+  border-color: #d8dde1;
 }
 
 /* Ghi chú đơn — giống Basso: không hiện góc kéo resize */

@@ -240,28 +240,32 @@
 
                   <!-- Tab Báo cáo: đơn quá 3 ngày chưa mua (gom theo website) -->
                   <div class="tab-pane" id="pane-report" role="tabpanel" hidden>
-                    <div class="d-flex flex-wrap align-items-center justify-content-between mb-2">
-                      <p class="text-muted small mb-0 mr-2">
-                        Tổng hợp đơn ở trạng thái chờ mua / cần xử lý, <b>quá 3 ngày</b> chưa có Order #, gom theo website.
-                      </p>
+                    <div class="report-toolbar d-flex flex-wrap align-items-start justify-content-between mb-3">
+                      <div class="report-toolbar-text">
+                        <h5 class="report-title mb-1">
+                          Báo cáo đơn chậm mua
+                          <span class="report-title-date" id="reportDateHead">—</span>
+                        </h5>
+                        <p class="text-muted small mb-0">
+                          Đơn chờ mua / cần xử lý, quá 3 ngày chưa có Order # · Gom theo website
+                        </p>
+                      </div>
                       <button type="button" class="btn btn-sm btn-primary" id="btnSendReportTelegram" title="Chụp bảng → gửi group Telegram">
                         <i class="fa fa-paper-plane"></i> Gửi Telegram
                       </button>
                     </div>
-                    <div class="table-responsive">
-                      <table class="table table-bordered report-table mb-0" id="reportTable">
+                    <div class="table-responsive report-table-wrap">
+                      <table class="table report-table mb-0" id="reportTable">
                         <thead>
                           <tr>
-                            <th colspan="7" class="report-date-head" id="reportDateHead">—</th>
-                          </tr>
-                          <tr>
-                            <th style="width: 50px">STT</th>
-                            <th style="min-width: 100px">Website</th>
-                            <th style="width: 120px">Số đơn mua chậm</th>
+                            <th style="width: 52px">STT</th>
+                            <th style="min-width: 140px">Website</th>
+                            <th style="width: 90px">Đơn chậm</th>
                             <th style="width: 110px">Số tiền</th>
-                            <th style="width: 100px">Ngày tạo đơn</th>
-                            <th style="width: 110px">Người xử lý</th>
-                            <th>Lý do</th>
+                            <th style="min-width: 150px">Ngày tạo đơn</th>
+                            <th style="min-width: 150px">Nhóm KH</th>
+                            <th style="min-width: 110px">Người xử lý</th>
+                            <th style="min-width: 220px">Lý do</th>
                           </tr>
                         </thead>
                         <tbody id="reportBody"></tbody>
