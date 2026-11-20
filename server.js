@@ -584,6 +584,16 @@ function sheetUrlClose(a, b) {
 function syncScannedFromSheetRecords(records) {
   const list = readScannedItems();
   let changed = false;
+  const matched = new Set();
+  const sheetUrlsInPull = new Set();
+  const liveKeys = new Set();
+  const liveUrls = new Set();
+  for (const rec of records || []) {
+    if (rec.checkerUrl) sheetUrlsInPull.add(String(rec.checkerUrl).trim().toLowerCase());
+    if (rec.itemKey) liveKeys.add(String(rec.itemKey).trim().toUpperCase());
+    if (rec.itemsUrl) liveUrls.add(String(rec.itemsUrl).trim().toLowerCase());
+  }
+
   for (const rec of records || []) {
     const orderNo = String(rec.orderNo || "").trim();
     const tracking = String(rec.tracking || "").trim();
@@ -606,8 +616,9 @@ function syncScannedFromSheetRecords(records) {
             (!rec.maDh || String(item.orderId) === String(rec.maDh))
         );
     }
-    if (!row && sameOrder.length === 1) row = sameOrder[0];
+    // Không gán theo Mã ĐH đơn độc — tránh SP lệch dòng khi xóa dòng giữa trên Excel
     if (!row) continue;
+    matched.add(`${row.orderId}|${row.itemId}`);
     // Sheet trống Order # / Tracking thì xóa số cũ (vd test1112) trên Nobita
     row.orderNo = orderNo;
     row.tracking = tracking;
@@ -618,6 +629,31 @@ function syncScannedFromSheetRecords(records) {
     row.syncedAt = new Date().toISOString();
     changed = true;
   }
+
+  // Dòng đã xóa trên Excel: bỏ Order # / Tracking cũ khỏi Đơn gửi mua (chưa tạo Admin)
+  for (const row of list) {
+    if (scannedIsDone(row)) continue;
+    const id = `${row.orderId}|${row.itemId}`;
+    if (matched.has(id)) continue;
+    const rowSheet = String(row.checkerUrl || "").trim().toLowerCase();
+    const fromPulledSheet =
+      !sheetUrlsInPull.size ||
+      !rowSheet ||
+      [...sheetUrlsInPull].some((u) => sheetUrlClose(u, rowSheet));
+    if (!fromPulledSheet) continue;
+    const key = String(row.itemKey || "").trim().toUpperCase();
+    const url = String(row.url || "").trim().toLowerCase();
+    const stillOnSheet =
+      (key && liveKeys.has(key)) ||
+      (url && [...liveUrls].some((u) => sheetUrlClose(u, url)));
+    if (stillOnSheet) continue;
+    if (!row.orderNo && !row.tracking) continue;
+    row.orderNo = "";
+    row.tracking = "";
+    row.syncedAt = new Date().toISOString();
+    changed = true;
+  }
+
   const pruned = list.filter(
     (row) => scannedIsDone(row) || String(row.orderNo || "").trim() || String(row.tracking || "").trim()
   );
@@ -1775,6 +1811,45 @@ async function syncOrderTrackingFromSheets({ orders, buyList, ptttList, source, 
         }
 
         if (!applied) unmatched += 1;
+      }
+    }
+
+    // SP đã xóa dòng trên Excel: xóa Order # / Tracking overlay (chưa tạo Admin)
+    const liveKeys = new Set();
+    const liveUrls = new Set();
+    for (const rec of allRecords) {
+      if (rec.itemKey) liveKeys.add(String(rec.itemKey).trim().toUpperCase());
+      if (rec.itemsUrl) liveUrls.add(normUrl(rec.itemsUrl));
+    }
+    const pulledSheets = (ptttList || []).map((p) => String(p.sheetUrl || "").trim()).filter(Boolean);
+    for (const order of orders) {
+      for (const item of order.items || []) {
+        const token = itemToken(item);
+        if (token && usedItems.has(token)) continue;
+        const k = itemOverlayKey(order.id, item.id);
+        const ov = itemOverlays[k];
+        if (!ov || ov.adminOrderChecked) continue;
+        if (!String(ov.orderNo || "").trim() && !String(ov.tracking || "").trim()) continue;
+        const checker = String(ov.checkerUrl || item.checkerUrl || "").trim();
+        const fromPulled =
+          !pulledSheets.length ||
+          !checker ||
+          pulledSheets.some((u) => urlsMatch(u, checker) || sheetUrlClose(u, checker));
+        if (!fromPulled) continue;
+        const key = String(item.itemKey || ov.itemKey || "").trim().toUpperCase();
+        const url = normUrl(item.url || "");
+        const stillOnSheet =
+          (key && liveKeys.has(key)) ||
+          (url && [...liveUrls].some((u) => urlsMatch(u, url)));
+        if (stillOnSheet) continue;
+        item.orderNo = "";
+        item.tracking = "";
+        itemOverlays[k] = {
+          ...ov,
+          orderNo: "",
+          tracking: "",
+          syncedAt: new Date().toISOString(),
+        };
       }
     }
 
