@@ -241,7 +241,7 @@ function localBuyItem(order, item, bag = "") {
   };
 }
 
-/** Add bag từ Đã quét → chỉ Đang mua. Thêm từ Cần mua (bag trống) → cả hai tab. */
+/** Add bag Đơn gửi mua (dang_mua) tách khỏi tự mua / Thêm thủ công (bag trống). */
 function isSendBagItem(item) {
   return String((item && item.bag) || "") !== "dang_mua";
 }
@@ -251,12 +251,25 @@ function isAdminBagItem(item) {
   return bag === "dang_mua" || bag === "" || bag === "both";
 }
 
+function isScannedAdminBagItem(item) {
+  return String((item && item.bag) || "") === "dang_mua";
+}
+
+function isManualAdminBagItem(item) {
+  const bag = String((item && item.bag) || "");
+  return bag === "" || bag === "both";
+}
+
 function sendBagItems() {
   return (state.buyList || []).filter(isSendBagItem);
 }
 
+/** Ưu tiên bag Add bag Đơn gửi mua — không gộp với thủ công. */
 function adminBagItems() {
-  return (state.buyList || []).filter(isAdminBagItem);
+  const all = (state.buyList || []).filter(isAdminBagItem);
+  const scanned = all.filter(isScannedAdminBagItem);
+  if (scanned.length) return scanned;
+  return all.filter(isManualAdminBagItem);
 }
 
 function refreshBagView() {
@@ -265,8 +278,8 @@ function refreshBagView() {
 }
 
 function activeBuyItems() {
-  // Tab Đang mua dùng chung 1 giỏ; hình thức chỉ đổi form bên dưới
-  return state.buyList || [];
+  if (state.buyMode === "gui_don") return sendBagItems();
+  return adminBagItems();
 }
 
 function setBuyMode(mode) {
@@ -297,6 +310,8 @@ async function addOrderItemsToBag(order, onlyItemId) {
     });
   }
 
+  // Thêm thủ công: bỏ bag Add bag Đơn gửi mua để không gộp
+  state.buyList = (state.buyList || []).filter((x) => !isScannedAdminBagItem(x));
   let added = 0;
   for (const item of items) {
     if (state.buyList.some((x) => String(x.itemId) === String(item.id))) continue;
@@ -404,7 +419,7 @@ function updateMeta() {
     can_mua_co: 0,
     gui_don: sendBagItems().length,
     dang_mua: new Set(
-      [...adminBagItems(), ...sendBagItems()].map((it) => String(it.itemId || it.buyId))
+      (state.buyList || []).map((it) => String(it.itemId || it.buyId))
     ).size,
     bao_cao: overdue.reduce((s, r) => s + r.orderCount, 0),
     da_quet: scannedProductRows().length,
@@ -904,6 +919,8 @@ async function openAdminBagModalForOrderNo(orderNo) {
     const data = await res.json();
     if (!data.ok) return toast(data.error || "Không gom được sản phẩm", { error: true });
     if (Array.isArray(data.items)) state.buyList = data.items;
+    // Add bag Đơn gửi mua → chỉ hiện bag đó (Tự mua), không gộp thủ công
+    setBuyMode("tu_mua");
     state.adminModalOpen = true;
     $("#adminBagModal").prop("hidden", false);
     renderAdminModalBag();
@@ -1331,6 +1348,8 @@ async function addScannedToBag(pairs) {
   let blockedAdmin = 0;
   let blockedOrder = 0;
   const toSave = [];
+  // Không gộp với tự mua / thủ công
+  state.buyList = (state.buyList || []).filter((x) => !isManualAdminBagItem(x));
   let anchor = bagAnchorOrderNo();
   for (const pair of pairs) {
     const order = (state.orders || []).find((o) => String(o.id) === String(pair.orderId));

@@ -790,7 +790,9 @@ function toBuyItem(order, item, bag = "") {
 }
 
 function isSendBagItem(item) {
-  return String((item && item.bag) || "") !== "dang_mua";
+  // Gửi đơn: thủ công / shared — không lấy bag Add bag từ Đơn gửi mua
+  const bag = String((item && item.bag) || "");
+  return bag !== "dang_mua";
 }
 
 function isAdminBagItem(item) {
@@ -798,12 +800,25 @@ function isAdminBagItem(item) {
   return bag === "dang_mua" || bag === "" || bag === "both";
 }
 
+function isScannedAdminBagItem(item) {
+  return String((item && item.bag) || "") === "dang_mua";
+}
+
+function isManualAdminBagItem(item) {
+  const bag = String((item && item.bag) || "");
+  return bag === "" || bag === "both";
+}
+
 function sendBagItems(list) {
   return (list || []).filter(isSendBagItem);
 }
 
+/** Add bag Đơn gửi mua (dang_mua) không gộp với tự mua / Thêm thủ công. */
 function adminBagItems(list) {
-  return (list || []).filter(isAdminBagItem);
+  const all = (list || []).filter(isAdminBagItem);
+  const scanned = all.filter(isScannedAdminBagItem);
+  if (scanned.length) return scanned;
+  return all.filter(isManualAdminBagItem);
 }
 
 /** Gửi danh sách SP lên Sheet theo PTTT (dùng chung create-order + gửi đơn 1 dòng) */
@@ -2163,7 +2178,8 @@ app.post("/api/basso/buy-list/add-all", async (req, res) => {
     return res.status(400).json({ ok: false, error: "Đơn không có sản phẩm" });
   }
 
-  const buyList = readBuyList();
+  // Thêm thủ công: bỏ bag Add bag Đơn gửi mua để không gộp
+  let buyList = readBuyList().filter((x) => !isScannedAdminBagItem(x));
   let added = 0;
   let skipped = 0;
   let adminSkipped = 0;
@@ -2210,7 +2226,13 @@ app.post("/api/basso/buy-list/add-item", async (req, res) => {
     return res.status(400).json({ ok: false, error: "Sản phẩm đã tạo đơn Admin, không thêm lại được" });
   }
 
-  const buyList = readBuyList();
+  let buyList = readBuyList();
+  // Add bag Đơn gửi mua ↔ thủ công: không gộp
+  if (bag === "dang_mua") {
+    buyList = buyList.filter((x) => !isManualAdminBagItem(x));
+  } else {
+    buyList = buyList.filter((x) => !isScannedAdminBagItem(x));
+  }
   const sameBag = bag === "dang_mua" ? adminBagItems(buyList) : sendBagItems(buyList);
   if (sameBag.some((x) => String(x.itemId) === String(item.id))) {
     return res.json({ ok: false, error: "Sản phẩm đã có trong danh sách", items: buyList });
@@ -2260,13 +2282,14 @@ app.post("/api/basso/buy-list/add-scanned-group", async (req, res) => {
 
   let buyList = readBuyList();
   if (replace) {
-    buyList = buyList.filter((x) => String(x.bag || "") !== "dang_mua");
+    // Không gộp với tự mua / Add bag thủ công ở tab khác
+    buyList = buyList.filter((x) => !isAdminBagItem(x));
   }
 
   let added = 0;
   let skipped = 0;
   for (const row of scanned) {
-    if (buyList.some((x) => String(x.itemId) === String(row.itemId) && isAdminBagItem(x))) {
+    if (buyList.some((x) => String(x.itemId) === String(row.itemId) && isScannedAdminBagItem(x))) {
       skipped += 1;
       continue;
     }
@@ -2358,8 +2381,8 @@ app.delete("/api/basso/buy-list/:buyId", (req, res) => {
 
 app.post("/api/basso/buy-list/create-order", async (req, res) => {
   const all = readBuyList();
-  // Tab Đang mua gộp Gửi đơn: gửi toàn bộ giỏ đang mở
-  const buyList = all.length ? all : sendBagItems(all);
+  // Chỉ SP gửi đơn / thủ công — không lấy bag Add bag Đơn gửi mua
+  const buyList = sendBagItems(all);
   if (!buyList.length) {
     return res.status(400).json({ ok: false, error: "Bạn chưa chọn sản phẩm" });
   }
@@ -2434,8 +2457,8 @@ async function tickExcelChecks(groups) {
 /** Tạo đơn Admin trên Basso (POST /partner/createWebOrder) — tab Đang mua */
 app.post("/api/basso/buy-list/create-admin-order", async (req, res) => {
   const all = readBuyList();
-  // Tab Đang mua dùng chung giỏ — ưu tiên toàn bộ, fallback filter cũ
-  const buyList = all.length ? all : adminBagItems(all);
+  // Chỉ giỏ Tự mua hiện tại (Add bag Đơn gửi mua XOR thủ công — không gộp)
+  const buyList = adminBagItems(all);
   if (!buyList.length) {
     return res.status(400).json({ ok: false, error: "Bạn chưa chọn sản phẩm" });
   }
