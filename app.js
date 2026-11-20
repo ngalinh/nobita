@@ -703,8 +703,6 @@ function buyListRowHtml(item, i, { admin } = {}) {
   const line = Number(item.price || 0) * Number(item.qty || 1);
   const img = item.image || "/assets/img/dummy.png";
   const cur = escapeHtml(item.currencySymbol || "$");
-  const extraCols = `<td class="text-left" style="word-break:break-all">${escapeHtml(item.orderNo || "")}</td>
-        <td class="text-left" style="word-break:break-all">${escapeHtml(item.tracking || "")}</td>`;
   return `
       <tr data-buy-id="${escapeHtml(item.buyId)}">
         <td>${i + 1}</td>
@@ -712,7 +710,6 @@ function buyListRowHtml(item, i, { admin } = {}) {
         <td width="80"><img src="${escapeHtml(img)}" class="img-fluid" style="max-height:80px" loading="lazy" /></td>
         <td class="text-left"><a href="${escapeHtml(item.url || "#")}" target="_blank">${escapeHtml(item.name)}</a></td>
         <td class="text-left"><b>Size</b>: ${escapeHtml(item.size || "—")}<br /><b>Màu</b>: ${escapeHtml(item.color || "—")}</td>
-        <td>${item.qty || 1}</td>
         <td>
           <div class="input-group">
             <div class="input-group-prepend"><span class="input-group-text text-sm">${cur}</span></div>
@@ -720,7 +717,6 @@ function buyListRowHtml(item, i, { admin } = {}) {
           </div>
         </td>
         <td>${cur} ${money(line)}</td>
-        ${extraCols}
         <td>${escapeHtml(item.note || "")}</td>
         <td class="text-center">
           <a class="btn btn-link text-danger font-weight-bold js-buy-delete" href="javascript:">
