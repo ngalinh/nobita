@@ -1778,13 +1778,20 @@ async function syncOrderTrackingFromSheets({ orders, buyList, ptttList, source, 
         }
 
         let applied = false;
-        for (const order of orders) {
-          if (rec.maDh && String(order.id) !== String(rec.maDh)) continue;
-          const candidates = (order.items || []).filter((item) => {
+        function pickByUrl(items, requireVariant) {
+          return (items || []).filter((item) => {
             const token = itemToken(item);
             if (token && usedItems.has(token)) return false;
-            return urlsMatch(item.url, rec.itemsUrl) && variantMatch(item, rec.sizeColor);
+            if (!urlsMatch(item.url, rec.itemsUrl)) return false;
+            if (requireVariant && !variantMatch(item, rec.sizeColor)) return false;
+            return true;
           });
+        }
+        for (const order of orders) {
+          if (rec.maDh && String(order.id) !== String(rec.maDh)) continue;
+          let candidates = pickByUrl(order.items || [], true);
+          // Size/màu Excel lệch Basso (vd Size: 14) — nếu đúng 1 SP cùng link thì vẫn gắn
+          if (!candidates.length) candidates = pickByUrl(order.items || [], false);
           if (candidates.length > 1) {
             const unset = candidates.find((it) => !it.orderNo && !it.tracking) || candidates[0];
             if (applyToItem(unset, rec, "fallback", order.id)) applied = true;
@@ -1796,12 +1803,22 @@ async function syncOrderTrackingFromSheets({ orders, buyList, ptttList, source, 
         }
 
         if (!applied) {
-          const buyCandidates = buyList.filter((item) => {
-            const token = itemToken(item);
-            if (token && usedItems.has(token)) return false;
-            if (rec.maDh && String(item.orderId || item.orderCode) !== String(rec.maDh)) return false;
-            return urlsMatch(item.url, rec.itemsUrl) && variantMatch(item, rec.sizeColor);
-          });
+          let buyCandidates = pickByUrl(
+            buyList.filter(
+              (item) =>
+                !rec.maDh || String(item.orderId || item.orderCode) === String(rec.maDh)
+            ),
+            true
+          );
+          if (!buyCandidates.length) {
+            buyCandidates = pickByUrl(
+              buyList.filter(
+                (item) =>
+                  !rec.maDh || String(item.orderId || item.orderCode) === String(rec.maDh)
+              ),
+              false
+            );
+          }
           if (buyCandidates.length >= 1) {
             const chosen =
               buyCandidates.find((it) => !it.orderNo && !it.tracking) || buyCandidates[0];
