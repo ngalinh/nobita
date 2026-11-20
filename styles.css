@@ -310,17 +310,38 @@ textarea.admin_note.no-resize-fit {
   width: 130px !important;
 }
 
-/* Filter site — Select2 giống Basso (.select2-order) */
+/* Filter site — Select2 cao bằng ô tìm + nút cùng hàng */
+#pane-orders .input-group {
+  align-items: stretch;
+}
+
+#pane-orders #searchInput.form-control {
+  height: 38px;
+  min-height: 38px;
+}
+
+#pane-orders #btnSearch {
+  height: 38px;
+  min-height: 38px;
+  padding-top: 0;
+  padding-bottom: 0;
+  display: inline-flex;
+  align-items: center;
+}
+
 .input-group-append.site-filter-append {
   width: 200px !important;
   flex: 0 0 200px !important;
   max-width: 200px !important;
   position: relative;
+  display: flex !important;
+  align-items: stretch !important;
 }
 
 #siteFilter + .select2-container {
   width: 200px !important;
   max-width: 200px !important;
+  height: 38px !important;
   display: block !important;
   margin: 0 !important;
   vertical-align: middle;
@@ -328,20 +349,22 @@ textarea.admin_note.no-resize-fit {
 
 #siteFilter + .select2-container .select2-selection--single {
   position: relative !important;
-  display: block !important;
+  display: flex !important;
+  align-items: center !important;
   width: 100% !important;
-  height: 35px !important;
-  min-height: 35px !important;
+  height: 38px !important;
+  min-height: 38px !important;
   border-radius: 0 !important;
   border-color: #dde6e9 !important;
   overflow: hidden !important;
   box-shadow: none !important;
+  box-sizing: border-box !important;
 }
 
 #siteFilter + .select2-container .select2-selection--single .select2-selection__rendered {
   display: block !important;
-  line-height: 33px !important;
-  height: 33px !important;
+  line-height: 36px !important;
+  height: 36px !important;
   padding: 0 28px 0 12px !important;
   margin: 0 !important;
   color: #3a3f51;
@@ -358,7 +381,7 @@ textarea.admin_note.no-resize-fit {
   left: auto !important;
   bottom: auto !important;
   width: 24px !important;
-  height: 35px !important;
+  height: 38px !important;
   margin: 0 !important;
 }
 
