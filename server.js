@@ -551,7 +551,7 @@ function dropScannedItem(orderId, itemId) {
   writeScannedItems(list);
 }
 
-/** Mã ĐH không còn trên Basso và chưa tạo Admin thì bỏ khỏi Đã quét. Đơn đã tạo Admin vẫn giữ để cập nhật tracking. */
+/** Mã ĐH không còn trên Basso: giữ nếu đã có Order # / Tracking (theo dõi Excel) hoặc đã tạo Admin. */
 function dropScannedItemsGoneFromBasso(orders) {
   const liveIds = new Set();
   for (const order of orders || []) {
@@ -561,10 +561,51 @@ function dropScannedItemsGoneFromBasso(orders) {
   const list = readScannedItems();
   const next = list.filter((row) => {
     if (row && row.adminOrderChecked) return true;
+    if (String((row && row.orderNo) || "").trim() || String((row && row.tracking) || "").trim()) {
+      return true;
+    }
     return liveIds.has(String((row && row.orderId) || ""));
   });
   if (next.length !== list.length) writeScannedItems(next);
   return list.length - next.length;
+}
+
+function findOverlayByItemKey(itemKey) {
+  const key = String(itemKey || "")
+    .trim()
+    .toUpperCase();
+  if (!key) return null;
+  const overlays = readItemOverlays();
+  for (const [k, ov] of Object.entries(overlays || {})) {
+    if (String((ov && ov.itemKey) || "").trim().toUpperCase() !== key) continue;
+    const idx = String(k).indexOf("::");
+    if (idx < 0) continue;
+    return {
+      orderId: String(k).slice(0, idx),
+      itemId: String(k).slice(idx + 2),
+      ov: ov || {},
+    };
+  }
+  return null;
+}
+
+function parseSheetSizeColor(sizeColor) {
+  const raw = String(sizeColor || "");
+  const sizeM = raw.match(/size\s*:\s*([^\n\r]+)/i);
+  const colorM = raw.match(/(?:color|màu)\s*:\s*([^\n\r]+)/i);
+  return {
+    size: sizeM ? String(sizeM[1] || "").trim() : "",
+    color: colorM ? String(colorM[1] || "").trim() : "",
+  };
+}
+
+function websiteFromUrl(url) {
+  try {
+    const host = new URL(String(url || "").trim()).hostname.replace(/^www\./i, "");
+    return host.split(".")[0] || "";
+  } catch {
+    return "";
+  }
 }
 
 function sheetUrlClose(a, b) {
@@ -597,14 +638,21 @@ function syncScannedFromSheetRecords(records) {
   for (const rec of records || []) {
     const orderNo = String(rec.orderNo || "").trim();
     const tracking = String(rec.tracking || "").trim();
+    if (!orderNo && !tracking) continue;
     const sameOrder = list.filter(
       (row) => !scannedIsDone(row) && String(row.orderId) === String(rec.maDh || "")
     );
+    const keyUp = String(rec.itemKey || "")
+      .trim()
+      .toUpperCase();
     let row = null;
-    if (rec.itemKey) {
+    if (keyUp) {
       row =
-        sameOrder.find((item) => item.itemKey && String(item.itemKey) === String(rec.itemKey)) ||
-        list.find((item) => item.itemKey && String(item.itemKey) === String(rec.itemKey) && !scannedIsDone(item));
+        sameOrder.find((item) => String(item.itemKey || "").trim().toUpperCase() === keyUp) ||
+        list.find(
+          (item) =>
+            !scannedIsDone(item) && String(item.itemKey || "").trim().toUpperCase() === keyUp
+        );
     }
     if (!row && rec.itemsUrl) {
       row =
@@ -616,16 +664,60 @@ function syncScannedFromSheetRecords(records) {
             (!rec.maDh || String(item.orderId) === String(rec.maDh))
         );
     }
-    // Không gán theo Mã ĐH đơn độc — tránh SP lệch dòng khi xóa dòng giữa trên Excel
-    if (!row) continue;
+    // Sheet còn dòng (có Order # / Tracking) nhưng Đơn gửi mua đã mất — khôi phục từ overlay / sheet
+    if (!row) {
+      const found = keyUp ? findOverlayByItemKey(keyUp) : null;
+      const sc = parseSheetSizeColor(rec.sizeColor);
+      const orderId = String(
+        (found && found.orderId) || rec.maDh || ""
+      ).trim();
+      const itemId = String((found && found.itemId) || keyUp || "").trim();
+      if (!orderId && !itemId) continue;
+      const ov = (found && found.ov) || {};
+      row = {
+        orderId: orderId || keyUp || "sheet",
+        itemId: itemId || keyUp || `sheet-${Date.now()}`,
+        bassoOrderId: ov.bassoOrderId || "",
+        website: websiteFromUrl(rec.itemsUrl) || "",
+        brand: "",
+        currencySymbol: "$",
+        ptttId: rec.ptttId || ov.ptttId || "",
+        ptttName: rec.ptttName || ov.ptttName || "",
+        checkerUrl: rec.checkerUrl || ov.checkerUrl || "",
+        name: ov.name || rec.itemsUrl || keyUp || "Sheet item",
+        url: rec.itemsUrl || ov.url || "",
+        image: ov.image || "",
+        size: sc.size || ov.size || "",
+        color: sc.color || ov.color || "",
+        qty: 1,
+        price: 0,
+        orderNo: "",
+        tracking: "",
+        itemKey: keyUp || ov.itemKey || "",
+        adminOrderChecked: !!ov.adminOrderChecked,
+        adminOrderNumber: ov.adminOrderNumber || "",
+        adminWebOrderId: ov.adminWebOrderId || "",
+        adminTracking: ov.adminTracking || "",
+        adminTrackingChecked: !!ov.adminTrackingChecked,
+        adminTrackingSheetChecked: !!ov.adminTrackingSheetChecked,
+        syncedAt: "",
+      };
+      list.push(row);
+      changed = true;
+    }
     matched.add(`${row.orderId}|${row.itemId}`);
     // Sheet trống Order # / Tracking thì xóa số cũ (vd test1112) trên Nobita
     row.orderNo = orderNo;
     row.tracking = tracking;
-    if (rec.itemKey && !row.itemKey) row.itemKey = rec.itemKey;
+    if (keyUp) row.itemKey = keyUp;
+    if (rec.itemsUrl) row.url = rec.itemsUrl;
     if (rec.ptttId) row.ptttId = rec.ptttId;
     if (rec.ptttName) row.ptttName = rec.ptttName;
     if (rec.checkerUrl) row.checkerUrl = rec.checkerUrl;
+    const sc = parseSheetSizeColor(rec.sizeColor);
+    if (sc.size) row.size = sc.size;
+    if (sc.color) row.color = sc.color;
+    if (!row.website) row.website = websiteFromUrl(row.url);
     row.syncedAt = new Date().toISOString();
     changed = true;
   }
@@ -1736,14 +1828,19 @@ async function syncOrderTrackingFromSheets({ orders, buyList, ptttList, source, 
     }
 
     function findByItemKey(key) {
-      if (!key) return null;
+      const want = String(key || "")
+        .trim()
+        .toUpperCase();
+      if (!want) return null;
       for (const order of orders) {
         for (const item of order.items || []) {
-          if (String(item.itemKey || "") === String(key)) return { item, order };
+          if (String(item.itemKey || "").trim().toUpperCase() === want) return { item, order };
         }
       }
       for (const item of buyList) {
-        if (String(item.itemKey || item.buyId || "") === String(key)) return { item, order: null };
+        if (String(item.itemKey || item.buyId || "").trim().toUpperCase() === want) {
+          return { item, order: null };
+        }
       }
       return null;
     }
